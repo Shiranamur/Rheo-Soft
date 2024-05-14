@@ -75,6 +75,7 @@ class SequenceCreator(tk.Frame):
         self.sequence_lib.load_sequences()
 
 
+
 class SequenceLib(tk.Frame):
     def __init__(self, master):
         super().__init__(master)

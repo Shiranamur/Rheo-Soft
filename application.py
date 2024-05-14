@@ -1,7 +1,7 @@
 import tkinter as tk
 from settings import AppSettings
 from toolbox import ToolboxFrame
-from timeline import TimelineCanvas
+from timelinetest import TimelineCanvas
 
 
 class Application(tk.Tk):

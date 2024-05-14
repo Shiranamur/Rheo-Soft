@@ -9,18 +9,22 @@ class DragManager():
         widget.configure(cursor="hand1")
 
     def on_start(self, event):
-        # Store reference to the widget being dragged
         self.current_widget = event.widget
+        self.original_x = event.x
+        self.original_y = event.y
 
     def on_drag(self, event):
-        # Here, you could update the position of a floating window or ghost image
-        pass
+        x = self.current_widget.winfo_x() + (event.x - self.original_x)
+        y = self.current_widget.winfo_y() + (event.y - self.original_y)
+        self.current_widget.place(x=x, y=y)
 
     def on_drop(self, event):
-        # Check if the drop target is a Timeline instance and perform the addition
         x, y = event.widget.winfo_pointerxy()
         target = event.widget.winfo_containing(x, y)
-        if isinstance(target, Timeline) and self.current_widget is not None:
-            sequence_attribute = self.current_widget.cget("text")
-            target.add_sequence(sequence_attribute)
-        self.current_widget = None  # Clear the reference after dropping
+        if isinstance(target) and self.current_widget is not None:
+            sequence_text = self.current_widget.cget("text")
+            sequence_duration = self.current_widget.sequence_duration  # Ensure this attribute is set
+            target.add_sequence(sequence_text, sequence_duration)
+        elif isinstance(target) and self.current_widget is not None:
+            target.load_sequences()  # Refresh the SequenceLib content
+        self.current_widget = None
