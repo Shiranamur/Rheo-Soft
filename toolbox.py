@@ -2,11 +2,13 @@ import tkinter as tk
 import jsonLoader as js
 import dragManager as dm
 
+
 class ToolboxFrame(tk.Frame):
     def __init__(self, master, width):
         super().__init__(master, width=width, bg="#ADBFBD")
         self.configure(relief="groove", borderwidth="2")
-        self.tb_label = tk.Label(self, text="TOOLBOX", justify="center", font=("Helvetica", 20), width=width, bg="#ADBFBD", bd="1", relief="groove", pady=5, anchor="s")
+        self.tb_label = tk.Label(self, text="TOOLBOX", justify="center", font=("Helvetica", 20), width=width,
+                                 bg="#ADBFBD", bd="1", relief="groove", pady=5, anchor="s")
         self.tb_label.pack(side="top")
 
         self.sequence_lib = SequenceLib(self)
@@ -53,7 +55,7 @@ class SequenceCreator(tk.Frame):
             self.status_label["text"] = "La durée saisie est invalide"
         elif not self.name_entry.get():
             self.status_label["text"] = "Le nom de la sequence est invalide"
-        #elif self.function_entry.get() not... Insérer vérification de la fonction
+        # elif self.function_entry.get() not... Insérer vérification de la fonction
         else:
             self.create_sequence()
 
@@ -71,6 +73,7 @@ class SequenceCreator(tk.Frame):
         sequence_list.append(sequence_data)
         self.status_label["text"] = js.sequences_writer(sequence_list)
         self.sequence_lib.load_sequences()
+
 
 class SequenceLib(tk.Frame):
     def __init__(self, master):

@@ -1,6 +1,7 @@
 import tkinter as tk
 from settings import AppSettings
 from toolbox import ToolboxFrame
+from timeline import TimelineCanvas
 
 
 class Application(tk.Tk):
@@ -9,7 +10,7 @@ class Application(tk.Tk):
         self.geometry(AppSettings.default_geometry(self))
         self.title(AppSettings.title)
         self.create_toolbox(20)
-        self.create_timeline()
+        self.create_timeline(20)
         self.create_graph()
 
     def create_toolbox(self, width_percent):
@@ -18,8 +19,10 @@ class Application(tk.Tk):
         self.toolbox.pack(side="left", fill="y", expand=False)
         self.toolbox.pack_propagate(False)
 
-    def create_timeline(self):
-        pass
+    def create_timeline(self,height_percent):
+        tl_height = int(self.winfo_screenheight()) * (height_percent / 100)
+        self.timeline = TimelineCanvas(self, height=int(tl_height))
+        self.timeline.pack(side="bottom", fill="x", expand=False,)
 
     def create_graph(self):
         pass
