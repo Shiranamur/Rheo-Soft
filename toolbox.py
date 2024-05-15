@@ -1,14 +1,12 @@
-import tkinter as tk
+import customtkinter as tk
 import jsonLoader as js
 import dragManager as dm
 
 
-class ToolboxFrame(tk.Frame):
+class ToolboxFrame(tk.CTkFrame):
     def __init__(self, master, width):
-        super().__init__(master, width=width, bg="#ADBFBD")
-        self.configure(relief="groove", borderwidth="2")
-        self.tb_label = tk.Label(self, text="TOOLBOX", justify="center", font=("Helvetica", 20), width=width,
-                                 bg="#ADBFBD", bd="1", relief="groove", pady=5, anchor="s")
+        super().__init__(master, width=width)
+        self.tb_label = tk.CTkLabel(self, text="TOOLBOX", justify="center", font=("Helvetica", 20), width=width, pady=5, anchor="s")
         self.tb_label.pack(side="top")
 
         self.sequence_lib = SequenceLib(self)
@@ -22,32 +20,32 @@ class ToolboxFrame(tk.Frame):
         # self.label.pack(side="top")
 
 
-class SequenceCreator(tk.Frame):
+class SequenceCreator(tk.CTkFrame):
     def __init__(self, master, sequence_lib):
         super().__init__(master)
         self.sequence_lib = sequence_lib
-        self.label = tk.Label(self, text="Sequence Creator", justify="center")
+        self.label = tk.CTkLabel(self, text="Sequence Creator", justify="center")
         self.label.pack(side="top")
 
-        self.name_label = tk.Label(self, text="Nom de la séquence :", justify="left")
+        self.name_label = tk.CTkLabel(self, text="Nom de la séquence :", justify="left")
         self.name_label.pack(side="top")
-        self.name_entry = tk.Entry(self, cursor="xterm")
+        self.name_entry = tk.CTkEntry(self)
         self.name_entry.pack(side="top")
 
-        self.duration_label = tk.Label(self, text="Durée de la séquence (en secondes):")
+        self.duration_label = tk.CTkLabel(self, text="Durée de la séquence (en secondes):")
         self.duration_label.pack(side="top")
-        self.duration_entry = tk.Entry(self, cursor="xterm")
+        self.duration_entry = tk.CTkEntry(self)
         self.duration_entry.pack(side="top")
 
-        self.function_label = tk.Label(self, text="Fonction:")
+        self.function_label = tk.CTkLabel(self, text="Fonction:")
         self.function_label.pack(side="top")
-        self.function_entry = tk.Entry(self, cursor="xterm")
+        self.function_entry = tk.CTkEntry(self)
         self.function_entry.pack(side="top")
 
-        self.create_button = tk.Button(self, text="Create Sequence", command=self.verify_sequence)
+        self.create_button = tk.CTkButton(self, text="Create Sequence", command=self.verify_sequence)
         self.create_button.pack(side="top")
 
-        self.status_label = tk.Label(self, text="")
+        self.status_label = tk.CTkLabel(self, text="")
         self.status_label.pack(side="top")
 
     def verify_sequence(self):
@@ -76,7 +74,7 @@ class SequenceCreator(tk.Frame):
 
 
 
-class SequenceLib(tk.Frame):
+class SequenceLib(tk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         self.labels = {}
@@ -86,7 +84,7 @@ class SequenceLib(tk.Frame):
         self.clear_labels()
         for sequence in js.sequences_reader():
             sequence_name = sequence["Name"]
-            label = tk.Label(self, text=sequence_name)
+            label = tk.CTkLabel(self, text=sequence_name)
             label.pack(side="top")
             self.labels[sequence_name] = label
             dm.DragManager().add_dragable(label)

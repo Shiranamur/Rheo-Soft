@@ -1,7 +1,7 @@
-import tkinter as tk
+import customtkinter as tk
 
 
-class TimelineCanvas(tk.Canvas):
+class TimelineCanvas(tk.CTkCanvas):
     def __init__(self, master, height, initial_scale=1, base_major=45, base_minor=7.5, base_max_range=675):
         super().__init__(master, height=height)
         self.configure(relief="flat")
@@ -14,16 +14,16 @@ class TimelineCanvas(tk.Canvas):
         self.update_scale_properties()
 
         # Scrollbar setup
-        self.hbar = tk.Scrollbar(master, orient=tk.HORIZONTAL)
+        self.hbar = tk.CTkScrollbar(master, orient=tk.HORIZONTAL)
         self.hbar.pack(side=tk.BOTTOM, fill=tk.X)
         self.hbar.config(command=self.xview)
         self.config(xscrollcommand=self.hbar.set)
         self.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Zoom buttons
-        zoom_in_button = tk.Button(master, text="+", command=self.zoom_in)
+        zoom_in_button = tk.CTkButton(master, text="+", command=self.zoom_in)
         zoom_in_button.pack(side=tk.RIGHT)
-        zoom_out_button = tk.Button(master, text="-", command=self.zoom_out)
+        zoom_out_button = tk.CTkButton(master, text="-", command=self.zoom_out)
         zoom_out_button.pack(side=tk.RIGHT)
 
         # Initial drawing of the timeline

@@ -1,10 +1,10 @@
-import tkinter as tk
+import customtkinter as tk
 from settings import AppSettings
 from toolbox import ToolboxFrame
 from timelinetest import TimelineCanvas
 
 
-class Application(tk.Tk):
+class Application(tk.CTk):
     def __init__(self):
         super().__init__()
         self.geometry(AppSettings.default_geometry(self))
