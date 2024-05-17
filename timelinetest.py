@@ -6,14 +6,14 @@ class TimelineCanvas(tk.CTkCanvas):
     def __init__(self, master, height):
         super().__init__(master, height=height)
         self.range = 1000
-        self.zoom_level = 50
-        self.visible_range = self.range * (self.zoom_level / 100)
+        self.zoom_level = 2
+        self.visible_range = self.range / self.zoom_level
         self.display_start = 0
 
         self.sequences_list = []
         self.all_sequences = None
 
-        self.scrollbar = tk.CTkScrollbar(master, orientation="horizontal", command=self.scroll)
+        self.scrollbar = tk.CTkScrollbar(master, orientation="horizontal", command=self.xview)
         self.scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         self.configure(xscrollcommand=self.scrollbar.set)
 

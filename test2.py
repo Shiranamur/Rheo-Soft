@@ -1,54 +1,62 @@
-import tkinter as tk
+import customtkinter as tk
 
 
-class CustomCanvas(tk.Canvas):
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        self.range = 1000
-        self.zoom_levels = [1, 2, 3]
-        self.current_zoom_index = 0
-        self.zoom_range = self.range / self.zoom_levels[self.current_zoom_index]
-        self.x_scroll = tk.Scrollbar(parent, orient='horizontal', command=self.xview)
-        self.configure(xscrollcommand=self.x_scroll.set)
-        self.x_scroll.pack(side=tk.BOTTOM, fill=tk.X)
-        self.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
-        self.draw_grid_lines()
+class TimelineCanvas(tk.CTkCanvas):
+    def __init__(self, master, height):
+        super().__init__(master, height=height)
+        self.range = 10000
+        self.var_zoom = tk.IntVar(value=1)
+        self.visible_range = self.range / self.var_zoom.get()
+        self.height = height
 
-    def draw_grid_lines(self):
-        self.delete("grid_line")  # Clear existing grid lines
-        line_spacing = self.zoom_range / 10  # Drawing lines every 1/10th of the zoom range
-        for i in range(0, int(self.range / line_spacing) + 1):
-            x = i * line_spacing
-            self.create_line(x, 0, x, self.winfo_height(), tags="grid_line")
+        self.scrollbar = tk.CTkScrollbar(master, orientation=tk.HORIZONTAL, command=self.xview)
+        self.scrollbar.pack(side=tk.BOTTOM, fill="x")
+        self.configure(xscrollcommand=self.scrollbar.set)
 
-    def change_zoom(self, direction):
-        if direction == 'in' and self.current_zoom_index < len(self.zoom_levels) - 1:
-            self.current_zoom_index += 1
-        elif direction == 'out' and self.current_zoom_index > 0:
-            self.current_zoom_index -= 1
-        self.zoom_range = self.range / self.zoom_levels[self.current_zoom_index]
-        self.draw_grid_lines()
-        self.adjust_scroll_region()
+        self.button_frame = tk.CTkFrame(master, height=height)
+        self.button_frame.pack(side=tk.RIGHT, fill="y")
 
-    def adjust_scroll_region(self):
-        self.configure(scrollregion=(0, 0, self.range, self.winfo_height()))
-        # Adjust scrollbar to center view at middle of zoom_range
-        mid_point = (self.zoom_range / 2) / self.range
-        self.xview_moveto(mid_point - (self.zoom_range / 2) / self.range)
+        # Buttons for zooming
+        self.zoom_in_button = tk.CTkButton(self.button_frame, text="Zoom In", command=self.zoom_out)
+        self.zoom_in_button.pack(pady=5)
+        self.zoom_out_button = tk.CTkButton(self.button_frame, text="Zoom Out", command=self.zoom_in)
+        self.zoom_out_button.pack(pady=5)
+        self.update_zoom()
+        self.draw_timeline()
 
+    def draw_timeline(self):
+        self.delete("all")
+        step = 1000
+        padding = 25
+        num_steps = (self.range // step) + 1
+        for i in range(num_steps):
+            x = padding + i * ((self.visible_range - 2 * padding) / (num_steps - 1))
+            self.create_line(x, 0, x, self.height - 30, tags="line")
+            self.create_text(x, self.height - 20, text=str(i * step), anchor=tk.N, tags="text")
 
-def create_test_environment():
-    root = tk.Tk()
-    canvas = CustomCanvas(root, width=800, height=600)
+    def update_zoom(self):
+        oldpos = self.xview()
+        focus_point = (oldpos[1] - oldpos[0]) / 2
+        print(f"oldpos: {oldpos}, focus_point: {focus_point}")
 
-    # Buttons for zooming in and out
-    btn_zoom_in = tk.Button(root, text="Zoom In", command=lambda: canvas.change_zoom('in'))
-    btn_zoom_in.pack(side=tk.LEFT, padx=10)
+        self.visible_range = self.range / self.var_zoom.get()
 
-    btn_zoom_out = tk.Button(root, text="Zoom Out", command=lambda: canvas.change_zoom('out'))
-    btn_zoom_out.pack(side=tk.LEFT, padx=10)
+        self.configure(scrollregion=(0, 0, self.visible_range, self.height))
+        self.draw_timeline()
 
-    root.mainloop()
+        newpos = self.xview()
+        newpos_halved = (newpos[1] - newpos[0])/2
+        print(f"newpos: {newpos}, newpos_halved: {newpos_halved}\n moveto: {focus_point-newpos_halved}")
 
-# Uncomment the line below to run the test environment when you're ready.
-create_test_environment()
+        self.scrollbar.configure(command=self.xview)
+        self.xview_moveto(max(0, min(focus_point-newpos_halved, 1)))
+
+    def zoom_in(self):
+        if self.var_zoom.get() < 5:
+            self.var_zoom.set(self.var_zoom.get() + 1)
+            self.update_zoom()
+
+    def zoom_out(self):
+        if self.var_zoom.get() > 1:
+            self.var_zoom.set(self.var_zoom.get() - 1)
+            self.update_zoom()

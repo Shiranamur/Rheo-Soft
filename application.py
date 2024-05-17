@@ -1,7 +1,7 @@
 import customtkinter as tk
 from settings import AppSettings
 from toolbox import ToolboxFrame
-from timelinetest import TimelineCanvas
+from test2 import TimelineCanvas
 
 
 class Application(tk.CTk):
@@ -21,7 +21,7 @@ class Application(tk.CTk):
 
     def create_timeline(self,height_percent):
         tl_height = int(self.winfo_screenheight()) * (height_percent / 100)
-        self.timeline = TimelineCanvas(self, height=int(tl_height))
+        self.timeline = TimelineCanvas(self, height=tl_height)
         self.timeline.pack(side="bottom", fill="x", expand=False,)
 
     def create_graph(self):
