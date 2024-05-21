@@ -1,4 +1,5 @@
-class DragManager():
+from timeline import TimelineCanvas
+class DragManager:
     def __init__(self):
         self.current_widget = None
 
@@ -21,10 +22,7 @@ class DragManager():
     def on_drop(self, event):
         x, y = event.widget.winfo_pointerxy()
         target = event.widget.winfo_containing(x, y)
-        if isinstance(target) and self.current_widget is not None:
+        if isinstance(target, TimelineCanvas) and self.current_widget is not None:
             sequence_text = self.current_widget.cget("text")
-            sequence_duration = self.current_widget.sequence_duration  # Ensure this attribute is set
-            target.add_sequence(sequence_text, sequence_duration)
-        elif isinstance(target) and self.current_widget is not None:
-            target.load_sequences()  # Refresh the SequenceLib content
+            target.add_sequence(sequence_text)
         self.current_widget = None

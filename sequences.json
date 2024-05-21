@@ -2,7 +2,7 @@
     {
         "Name": "test",
         "Duration": "1000",
-        "Function": ""
+        "Function": "20*(60/t)"
     },
     {
         "Name": "azdadaddddddd",
@@ -65,8 +65,23 @@
         "Function": ""
     },
     {
+        "Name": "Antonio",
+        "Duration": "69",
+        "Function": "420"
+    },
+    {
+        "Name": "thisisatest",
+        "Duration": "3600",
+        "Function": "60 *(30/t)"
+    },
+    {
+        "Name": "50",
+        "Duration": "5000",
+        "Function": "60"
+    },
+    {
         "Name": "test",
-        "Duration": "2000",
-        "Function": "20"
+        "Duration": "5000",
+        "Function": "60*(t*16)"
     }
 ]
