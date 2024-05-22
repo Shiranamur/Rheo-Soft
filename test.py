@@ -4,6 +4,7 @@ from toolbox import ToolboxFrame
 from timeline import TimelineCanvas
 from graph import GraphFrame
 
+
 class Application(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -65,6 +66,7 @@ class Application(ctk.CTk):
         graph_width = int(self.winfo_screenwidth()) * (width_percent / 100)
         self.graph = GraphFrame(tab, self.timeline.sequences_list, height=graph_height, width=graph_width)
         self.graph.pack(side="top")
+
 
 if __name__ == "__main__":
     app = Application()

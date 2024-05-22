@@ -9,7 +9,7 @@ class TimelineCanvas(tk.CTkCanvas):
         self.var_zoom = tk.IntVar(value=1)
         self.visible_range = self.range / self.var_zoom.get()
         self.height = height
-        #self.zoom_dic = {1: 100, 2: 50, 3: 33, 4: 25, 5: 20}
+        # self.zoom_dic = {1: 100, 2: 50, 3: 33, 4: 25, 5: 20}
         self.sequences_list = []
 
         self.scrollbar = tk.CTkScrollbar(master, orientation=tk.HORIZONTAL, command=self.xview)
@@ -50,14 +50,14 @@ class TimelineCanvas(tk.CTkCanvas):
         return 100  # Default interval if range is very small or zero
 
     def update_zoom(self):
-        #oldpos = self.xview()
-        #focus_point = (oldpos[1] - oldpos[0]) / 2
-        #test = focus_point * (self.var_zoom.get() / 100)
+        # oldpos = self.xview()
+        # focus_point = (oldpos[1] - oldpos[0]) / 2
+        # test = focus_point * (self.var_zoom.get() / 100)
         self.visible_range = self.range / self.var_zoom.get()
         self.configure(scrollregion=(0, 0, self.visible_range, self.height))
         self.draw_timeline()
         self.scrollbar.configure(command=self.xview)
-        #self.xview_moveto(max(0, min(test, 1)))
+        # self.xview_moveto(max(0, min(test, 1)))
         self.xview_moveto(0)
 
     def zoom_in(self):
