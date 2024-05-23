@@ -6,35 +6,30 @@ class GraphFrame(tk.CTkFrame):
         super().__init__(master, height=height, width=width)
         self.sequences_list = sequences_list
 
-        # Input box for resolution
         self.resolution_label = tk.CTkLabel(self, text="Resolution (seconds):")
         self.resolution_label.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.resolution_entry = tk.CTkEntry(self)
         self.resolution_entry.pack(side=tk.BOTTOM, padx=5, pady=5)
 
-        # Button to update the graph
         self.update_button = tk.CTkButton(self, text="Update Graph", command=self.plot_graph)
         self.update_button.pack(side=tk.BOTTOM, padx=5, pady=5)
 
-        # Canvas to draw the graph
         self.graph_canvas = tk.CTkCanvas(self, bg="white", width=width, height=height)
         self.graph_canvas.pack(side=tk.TOP, padx=5, pady=5)
 
-        self.plot_graph()  # Initial plot
+        self.plot_graph()
 
     def plot_graph(self):
         self.graph_canvas.delete("all")
         resolution = self.get_resolution()
         sequences = self.sequences_list
 
-        # Determine the max time and function value range
         if not sequences:
             return
 
         max_time = max(seq["start_time"] + int(seq["Duration"]) for seq in sequences)
-        max_value = 0  # To determine the maximum value of the function
+        max_value = 0
 
-        # Evaluate all functions to find the maximum value
         for seq in sequences:
             start_time = seq["start_time"]
             duration = int(seq["Duration"])
@@ -47,9 +42,8 @@ class GraphFrame(tk.CTkFrame):
                     max_value = value
 
         if max_value == 0:
-            max_value = 1  # Avoid division by zero
+            max_value = 1
 
-        # Draw axes
         padding = 50
         canvas_width = self.graph_canvas.winfo_width()
         canvas_height = self.graph_canvas.winfo_height()
@@ -57,11 +51,9 @@ class GraphFrame(tk.CTkFrame):
                                       arrow=tk.LAST)  # X axis
         self.graph_canvas.create_line(padding, canvas_height - padding, padding, padding, arrow=tk.LAST)  # Y axis
 
-        # Label axes
         self.graph_canvas.create_text(padding / 2, padding / 2, text="Function Value", angle=90)
         self.graph_canvas.create_text(canvas_width - padding / 2, canvas_height - padding / 2, text="Time")
 
-        # Plot points
         for seq in sequences:
             start_time = seq["start_time"]
             duration = int(seq["Duration"])

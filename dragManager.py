@@ -1,55 +1,55 @@
 from timeline import TimelineCanvas
-
+import customtkinter as tk
 
 class DragManager:
     def __init__(self):
         self.current_widget = None
+        self.drag_box = None
 
     def add_dragable(self, widget):
+        widget.bind("<Enter>", self.on_hover_enter)
+        widget.bind("<Leave>", self.on_hover_leave)
         widget.bind("<ButtonPress-1>", self.on_start)
         widget.bind("<B1-Motion>", self.on_drag)
         widget.bind("<ButtonRelease-1>", self.on_drop)
-        widget.configure(cursor="hand1")
-        print(f"Added dragable to {widget}")
+
+    def on_hover_enter(self, event):
+        event.widget.configure(cursor="hand1")
+
+    def on_hover_leave(self, event):
+        if not self.current_widget:
+            event.widget.configure(cursor="")
 
     def on_start(self, event):
         self.current_widget = event.widget
-        self.original_x = event.x
-        self.original_y = event.y
-        print(f"Drag started on {self.current_widget} at ({self.original_x}, {self.original_y})")
+        self.start_x = event.x_root
+        self.start_y = event.y_root
+
+        self.drag_box = tk.CTkLabel(self.current_widget.master, text=self.current_widget.cget("text"), fg_color="gray", text_color="white")
+        self.drag_box.place(x=event.x_root, y=event.y_root, anchor="center")
+        self.current_widget.configure(cursor="hand1")
 
     def on_drag(self, event):
-        if self.current_widget is None:
+        if self.drag_box is None:
             return
-        x = self.current_widget.winfo_x() + (event.x - self.original_x)
-        y = self.current_widget.winfo_y() + (event.y - self.original_y)
-        self.current_widget.place(x=x, y=y)
-        print(f"Dragging {self.current_widget} to ({x}, {y})")
+        new_x = event.x_root
+        new_y = event.y_root
+        self.drag_box.place(x=new_x, y=new_y, anchor="center")
 
     def on_drop(self, event):
-        if self.current_widget is None:
-            print("No widget to drop")
+        if self.drag_box is None:
             return
-
         x, y = event.widget.winfo_pointerxy()
-        print(f"Drop coordinates: ({x}, {y})")
-
         target = event.widget.winfo_containing(x, y)
         if target:
-            print(f"Target widget at drop: {target}")
-            # Print parent hierarchy
             current = target
             while current:
-                print(f"Widget: {current}, Type: {type(current)}")
                 if isinstance(current, TimelineCanvas):
                     sequence_text = self.current_widget.cget("text")
                     current.add_sequence(sequence_text)
-                    print(f"Dropped {sequence_text} on {current}")
                     break
                 current = current.master
-            else:
-                print("Drop target is not a TimelineCanvas")
-        else:
-            print("No target widget found at drop coordinates")
-
+        self.drag_box.destroy()
+        self.drag_box = None
+        self.current_widget.configure(cursor="")
         self.current_widget = None

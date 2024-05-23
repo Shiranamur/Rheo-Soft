@@ -1,4 +1,4 @@
-#main.py
+# main.py
 from application import Application
 
 if __name__ == "__main__":

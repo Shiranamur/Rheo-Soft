@@ -1,6 +1,6 @@
 import customtkinter as tk
 from jsonLoader import sequences_reader
-
+from SeqOptMenu import SeqOptMenu
 
 class TimelineCanvas(tk.CTkCanvas):
     def __init__(self, master, height):
@@ -9,7 +9,6 @@ class TimelineCanvas(tk.CTkCanvas):
         self.var_zoom = tk.IntVar(value=1)
         self.visible_range = self.range / self.var_zoom.get()
         self.height = height
-        # self.zoom_dic = {1: 100, 2: 50, 3: 33, 4: 25, 5: 20}
         self.sequences_list = []
 
         self.scrollbar = tk.CTkScrollbar(master, orientation=tk.HORIZONTAL, command=self.xview)
@@ -19,7 +18,6 @@ class TimelineCanvas(tk.CTkCanvas):
         self.button_frame = tk.CTkFrame(master, height=height)
         self.button_frame.pack(side=tk.RIGHT, fill="y")
 
-        # Buttons for zooming
         self.zoom_in_button = tk.CTkButton(self.button_frame, text="Zoom In", command=self.zoom_out)
         self.zoom_in_button.pack(pady=5)
         self.zoom_out_button = tk.CTkButton(self.button_frame, text="Zoom Out", command=self.zoom_in)
@@ -27,12 +25,13 @@ class TimelineCanvas(tk.CTkCanvas):
         self.update_zoom()
         self.draw_timeline()
 
+        self.seq_opt_menu = SeqOptMenu(self.sequences_list, self)
+
     def draw_timeline(self):
         self.delete("all")
-        start = 0  # Assuming timeline starts at 0
+        start = 0
         end = int(self.range)
         interval = self.find_interval(self.visible_range)
-
         padding = 25
         for i in range(start, end, interval):
             x = padding + (i - start) * ((self.visible_range - 2 * padding) / (end - start))
@@ -41,23 +40,18 @@ class TimelineCanvas(tk.CTkCanvas):
         self.draw_sequences()
 
     def find_interval(self, visible_range):
-        # Adjust interval based on visible range
         if visible_range > 0:
-            step = int(visible_range / 20)  # Example: divide visible range into 20 parts
+            step = int(visible_range / 20)
             magnitude = 10 ** (len(str(step)) - 1)
             interval = max(1, (step // magnitude) * magnitude)
             return interval
-        return 100  # Default interval if range is very small or zero
+        return 100
 
     def update_zoom(self):
-        # oldpos = self.xview()
-        # focus_point = (oldpos[1] - oldpos[0]) / 2
-        # test = focus_point * (self.var_zoom.get() / 100)
         self.visible_range = self.range / self.var_zoom.get()
         self.configure(scrollregion=(0, 0, self.visible_range, self.height))
         self.draw_timeline()
         self.scrollbar.configure(command=self.xview)
-        # self.xview_moveto(max(0, min(test, 1)))
         self.xview_moveto(0)
 
     def zoom_in(self):
@@ -91,11 +85,13 @@ class TimelineCanvas(tk.CTkCanvas):
 
     def draw_sequences(self):
         padding = 25
-        for sequence in self.sequences_list:
+        for index, sequence in enumerate(self.sequences_list):
             start_time = sequence["start_time"]
             duration = int(sequence["Duration"])
             end_time = start_time + duration
             x1 = padding + (start_time * (self.visible_range - 2 * padding) / self.range)
             x2 = padding + (end_time * (self.visible_range - 2 * padding) / self.range)
-            self.create_rectangle(x1, 30, x2, self.height - 50, fill="gray", tags="sequence")
-            self.create_text((x1 + x2) / 2, 35, text=sequence["Name"], anchor=tk.N, tags="sequence")
+            rect_tag = f"sequence_{index}"
+            self.create_rectangle(x1, 30, x2, self.height - 50, fill="gray", tags=(rect_tag, "sequence"))
+            self.create_text((x1 + x2) / 2, 35, text=sequence["Name"], anchor=tk.N, tags=(rect_tag, "sequence"))
+            self.seq_opt_menu.add_menu(rect_tag)
