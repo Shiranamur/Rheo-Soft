@@ -1,4 +1,4 @@
-from timeline import TimelineCanvas
+from cycleEditor.timeline import TimelineCanvas
 import customtkinter as tk
 
 class DragManager:

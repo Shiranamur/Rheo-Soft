@@ -1,15 +1,17 @@
 import json
-
+import os
+from settings import AppSettings
 
 def sequences_reader():
-    with open('../data/sequences.json', 'r') as file:
+    file_path = os.path.join(AppSettings.data_dir, 'sequences.json')
+    with open(file_path, 'r') as file:
         sequences = json.load(file)
         return sequences
 
-
 def sequences_writer(data):
+    file_path = os.path.join(AppSettings.data_dir, 'sequences.json')
     try:
-        with open('../data/sequences.json', 'w') as file:
+        with open(file_path, 'w') as file:
             json.dump(data, file, indent=4)
         return "Séquence créée avec succés !"
     except FileNotFoundError:

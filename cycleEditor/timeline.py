@@ -1,6 +1,6 @@
 import customtkinter as tk
 from utils.jsonLoader import sequences_reader
-from SeqOptMenu import SeqOptMenu
+from cycleEditor.SeqOptMenu import SeqOptMenu
 
 class TimelineCanvas(tk.CTkCanvas):
     def __init__(self, master, height):

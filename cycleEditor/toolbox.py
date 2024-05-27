@@ -1,6 +1,6 @@
 import customtkinter as tk
 from utils import jsonLoader as js
-import dragManager as dm
+import cycleEditor.dragManager as dm
 
 
 class ToolboxFrame(tk.CTkFrame):

@@ -1,20 +1,20 @@
 import customtkinter as tk
 
-from toolbox import ToolboxFrame
-from timeline import TimelineCanvas
-from graph import GraphFrame
+from cycleEditor.toolbox import ToolboxFrame
+from cycleEditor.timeline import TimelineCanvas
+from cycleEditor.graph import GraphFrame
 
 
 class Tabview(tk.CTkTabview):
     def __init__(self, master):
         super().__init__(master)
 
-        self.add("1")
-        self.add("2")
+        self.add("Contrôle en direct")
+        self.add("Editeur de Cycle")
 
-        self.create_toolbox(master=self.tab("1"), width_percent=20)
-        self.create_timeline(master=self.tab("1"), height_percent=20)
-        self.create_graph(master=self.tab("1"), height_percent=80, width_percent=80)
+        self.create_toolbox(master=self.tab("Editeur de Cycle"), width_percent=20)
+        self.create_timeline(master=self.tab("Editeur de Cycle"), height_percent=20)
+        self.create_graph(master=self.tab("Editeur de Cycle"), height_percent=80, width_percent=80)
 
     def create_toolbox(self, master, width_percent):
         tb_width = int(self.winfo_screenwidth()) * (width_percent / 100)
