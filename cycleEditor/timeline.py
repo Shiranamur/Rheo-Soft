@@ -1,5 +1,5 @@
 import customtkinter as tk
-from jsonLoader import sequences_reader
+from utils.jsonLoader import sequences_reader
 from SeqOptMenu import SeqOptMenu
 
 class TimelineCanvas(tk.CTkCanvas):
@@ -11,27 +11,36 @@ class TimelineCanvas(tk.CTkCanvas):
         self.height = height
         self.sequences_list = []
 
+        # Configure canvas
+        self.configure(height=height)
+
+        # Scrollbar
         self.scrollbar = tk.CTkScrollbar(master, orientation=tk.HORIZONTAL, command=self.xview)
         self.scrollbar.pack(side=tk.BOTTOM, fill="x")
         self.configure(xscrollcommand=self.scrollbar.set)
 
+        # Buttons for zooming
         self.button_frame = tk.CTkFrame(master, height=height)
-        self.button_frame.pack(side=tk.RIGHT, fill="y")
+        self.button_frame.pack(side=tk.RIGHT, fill=tk.Y)  # Match the height to the canvas
 
-        self.zoom_in_button = tk.CTkButton(self.button_frame, text="Zoom In", command=self.zoom_out)
+        self.zoom_in_button = tk.CTkButton(self.button_frame, text="Zoom In", command=self.zoom_in)
         self.zoom_in_button.pack(pady=5)
-        self.zoom_out_button = tk.CTkButton(self.button_frame, text="Zoom Out", command=self.zoom_in)
+        self.zoom_out_button = tk.CTkButton(self.button_frame, text="Zoom Out", command=self.zoom_out)
         self.zoom_out_button.pack(pady=5)
+
+        # Draw timeline
         self.update_zoom()
         self.draw_timeline()
 
+        # Initialize SeqOptMenu
         self.seq_opt_menu = SeqOptMenu(self.sequences_list, self)
 
     def draw_timeline(self):
         self.delete("all")
-        start = 0
+        start = 0  # Assuming timeline starts at 0
         end = int(self.range)
         interval = self.find_interval(self.visible_range)
+
         padding = 25
         for i in range(start, end, interval):
             x = padding + (i - start) * ((self.visible_range - 2 * padding) / (end - start))
@@ -41,11 +50,11 @@ class TimelineCanvas(tk.CTkCanvas):
 
     def find_interval(self, visible_range):
         if visible_range > 0:
-            step = int(visible_range / 20)
+            step = int(visible_range / 20)  # Example: divide visible range into 20 parts
             magnitude = 10 ** (len(str(step)) - 1)
             interval = max(1, (step // magnitude) * magnitude)
             return interval
-        return 100
+        return 100  # Default interval if range is very small or zero
 
     def update_zoom(self):
         self.visible_range = self.range / self.var_zoom.get()

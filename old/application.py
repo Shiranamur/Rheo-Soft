@@ -1,8 +1,8 @@
 import customtkinter as tk
 from settings import AppSettings
-from toolbox import ToolboxFrame
+from cycleEditor.toolbox import ToolboxFrame
 from timeline import TimelineCanvas
-from graph import GraphFrame
+from cycleEditor.graph import GraphFrame
 
 class Application(tk.CTk):
     def __init__(self):

@@ -1,5 +1,5 @@
 import customtkinter as tk
-from jsonLoader import sequences_reader
+from utils.jsonLoader import sequences_reader
 
 
 class TimelineCanvas(tk.CTkCanvas):

@@ -1,5 +1,5 @@
 import customtkinter as tk
-import jsonLoader as js
+from utils import jsonLoader as js
 import dragManager as dm
 
 

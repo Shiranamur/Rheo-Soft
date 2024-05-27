@@ -1,5 +1,5 @@
 class AppSettings:
-    title = "Editeur de Cycle"
+    title = "RheoSoft"
 
     @staticmethod
     def default_geometry(root):

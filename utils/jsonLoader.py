@@ -2,14 +2,14 @@ import json
 
 
 def sequences_reader():
-    with open('sequences.json', 'r') as file:
+    with open('../data/sequences.json', 'r') as file:
         sequences = json.load(file)
         return sequences
 
 
 def sequences_writer(data):
     try:
-        with open('sequences.json', 'w') as file:
+        with open('../data/sequences.json', 'w') as file:
             json.dump(data, file, indent=4)
         return "Séquence créée avec succés !"
     except FileNotFoundError:

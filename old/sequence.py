@@ -115,7 +115,7 @@ class Sequencecreator(tk.Frame):
         }
 
         try:
-            with open('../sequences.json', 'r') as file:
+            with open('../data/sequences.json', 'r') as file:
                 try:
                     sequences = json.load(file)
                 except json.JSONDecodeError:
@@ -125,7 +125,7 @@ class Sequencecreator(tk.Frame):
 
         sequences.append(sequence_data)
 
-        with open('../sequences.json', 'w') as file:
+        with open('../data/sequences.json', 'w') as file:
             json.dump(sequences, file, indent=4)
 
 
@@ -139,7 +139,7 @@ class Sequencelib(tk.Frame):
     def load_sequences(self):
         self.clear_labels()
         try:
-            with open('../sequences.json', 'r') as file:
+            with open('../data/sequences.json', 'r') as file:
                 sequences = json.load(file)
                 for sequence in sequences:
                     label_name = sequence['name']
