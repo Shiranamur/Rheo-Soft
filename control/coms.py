@@ -1,31 +1,20 @@
 import serial
-import time
+import threading
 
-# Replace 'COM3' with the correct port for your Arduino
-# For Linux or macOS, it might be something like '/dev/ttyUSB0' or '/dev/ttyACM0'
-arduino_port = '/dev/ttyACM0'
-baud_rate = 9600
-timeout = 10  # Timeout for serial read in seconds
 
-# Open the serial port
-ser = serial.Serial(arduino_port, baud_rate, timeout=timeout)
+class Pump:
+    def __init__(self, port):
+        self.port = port
+        self.baud_rate = 115200
+        self.ser = serial.Serial(self.port, self.baud_rate)
 
-# Allow some time for the serial connection to establish
-time.sleep(2)
+    def connect(self):
+        if self.port:
+            threading.Thread(target=self.ser.open).start()
 
-print("Reading EEPROM data from Arduino...")
+class Controller:
+    def __init__(self, port):
+        self.port = port
+        self.baud_rate = 115200
+        self.ser = serial.Serial(self.port, self.baud_rate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
 
-try:
-    while True:
-        if ser.in_waiting > 0:
-            # Read a line from the serial port
-            line = ser.readline().decode('utf-8').strip()
-            # Print the received line
-            print(line)
-
-except KeyboardInterrupt:
-    print("Exiting program")
-
-finally:
-    ser.close()
-    print("Serial port closed")

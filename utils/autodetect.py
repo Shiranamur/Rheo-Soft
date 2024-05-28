@@ -35,17 +35,17 @@ def list_serial_ports():
 def read_and_identify(port):
     """Reads data from the given port and identifies the device type."""
     try:
-        ser = serial.Serial(port, baudrate=115200, timeout=2)
-        while True:
-            if ser.in_waiting > 0:
-                data = ser.readline().decode('ascii').strip()
-                ser.close()
-                if 'L/min' in data:
-                    return 'pump', port
-                elif 'sensor' in data:
-                    return 'controller', port
-                else:
-                    return 'unknown', port
+        ser = serial.Serial(port, baudrate=115200, timeout=30)  # set timeout length
+        data = ser.readline().decode('ascii').strip()
+        ser.close()
+        if data == '':
+            return 'error', port  # Timeout error
+        if 'L/min' in data:
+            return 'pump', port
+        elif 'sensor' in data:
+            return 'controller', port
+        else:
+            return 'unknown', port
     except (OSError, serial.SerialException) as e:
         print(f"Error with port {port}: {e}")
         return 'error', port
@@ -67,6 +67,7 @@ def identify_devices():
             pump_port = port_name
             print(f"Pump found on port: {pump_port}")
         elif device_type == 'controller':
+            """To be replaced with actual controller logic"""
             controller_port = port_name
             print(f"Controller found on port: {controller_port}")
     return pump_port, controller_port
