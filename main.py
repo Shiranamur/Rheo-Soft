@@ -1,7 +1,7 @@
 # main.py
 import customtkinter as tk
 from settings import AppSettings
-from cycleEditor.tabview import Tabview
+from tabview import Tabview
 
 
 class Application(tk.CTk):

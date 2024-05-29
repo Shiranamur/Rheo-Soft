@@ -1,6 +1,7 @@
 import serial
 import threading
 import time
+from queue import Queue
 
 
 class Pump:
@@ -8,20 +9,22 @@ class Pump:
         self.port = port
         self.baud_rate = 115200
         self.ser = None
+        self.data_queue = Queue()
 
-    def connect_and_read(self):
+    def connect_and_log(self):
         self.ser = serial.Serial(self.port, self.baud_rate)
         while True:
             if self.ser and self.ser.in_waiting:
-                pump_output = self.ser.readline().decode('utf-8').strip()
-            time.sleep(0.1)  # à ajuster 
+                pump_output = self.ser.readline().decode('ascii').strip()
+                self.data_queue.put(pump_output)
+            time.sleep(0.1)  # à ajuster
 
-    def thread_and_log(self):
-        thread = threading.Thread(target=self.connect_and_read)
-        thread.daemon = True  # This will allow the program to exit even if the thread is still running
+    def start_thread(self):
+        thread = threading.Thread(target=self.connect_and_log, daemon=True)
         thread.start()
 
-
+    def get_data(self):
+        return self.data_queue.get()
 
 
 class Controller:
