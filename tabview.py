@@ -1,21 +1,26 @@
+# tabview.py
 import customtkinter as tk
 
 from cycleEditor.toolbox import ToolboxFrame
 from cycleEditor.timeline import TimelineCanvas
 from cycleEditor.graph import GraphFrame
 
-from control.pumpFrame import PumpFrame  # Ensure correct import
-
+from control.pumpFrame import PumpFrame
+from control.controlGraph import controlGraphFrame
 
 class Tabview(tk.CTkTabview):
-    def __init__(self, master):
+    def __init__(self, master, pump_port, controller_port):
         super().__init__(master)
+
+        self.pump_port = pump_port
+        self.controller_port = controller_port
 
         self.add("Contrôle en direct")
         self.add("Editeur de Cycle")
 
         """Create tab1 content"""
         self.create_pump_output(master=self.tab("Contrôle en direct"), width_percent=10, height_percent=5)
+        self.create_control_graph(master=self.tab("Contrôle en direct"), width_percent=10, height_percent=5)
 
         """Create tab2 content"""
         self.create_toolbox(master=self.tab("Editeur de Cycle"), width_percent=20)
@@ -26,8 +31,14 @@ class Tabview(tk.CTkTabview):
         """Creates the pump output frame"""
         po_width = int(self.winfo_screenwidth() * (width_percent / 100))
         po_height = int(self.winfo_screenheight() * (height_percent / 100))
-        self.pump_data = PumpFrame(master, height=po_height, width=po_width)
-        self.pump_data.pack(side=tk.TOP, expand=False, anchor="e")
+        self.pump_data = PumpFrame(master, height=po_height, width=po_width, port=self.pump_port)
+        self.pump_data.pack(side=tk.TOP, expand=False, anchor="w")
+
+    def create_control_graph(self, master, width_percent, height_percent):
+        cg_width = int(self.winfo_screenwidth() * (width_percent / 100))
+        cg_height = int(self.winfo_screenheight() * (height_percent / 100))
+        self.control_graph = controlGraphFrame(master, height=cg_height, width=cg_width, port=self.controller_port)
+        self.control_graph.pack(side=tk.TOP, expand=False, anchor="e")
 
     def create_toolbox(self, master, width_percent):
         """Creates the ToolboxFrame in second tab"""

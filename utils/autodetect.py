@@ -1,6 +1,7 @@
 import sys
 import glob
 import serial
+import time
 
 
 def list_serial_ports():
@@ -35,14 +36,25 @@ def list_serial_ports():
 def read_and_identify(port):
     """Reads data from the given port and identifies the device type."""
     try:
-        ser = serial.Serial(port, baudrate=115200, timeout=30)  # set timeout length
+        ser = serial.Serial(port, baudrate=115200, timeout=20)  # set timeout length
         data = ser.readline().decode('ascii').strip()
         ser.close()
+        print(f"terminated connection to {port}")
+
         if data == '':
-            return 'error', port  # Timeout error
+            ser = serial.Serial(port, baudrate=115200, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, timeout=30)
+            command = '$ID\r\n'
+            ser.write(command.encode())
+            data = ser.read_until(b'\r\n').decode().strip()
+            ser.close()
+            print(f"terminated connection to {port}")
+
+            if data == '':
+                return 'error', port
+
         if 'L/min' in data:
             return 'pump', port
-        elif 'sensor' in data:
+        elif 'ID=Junior' in data:
             return 'controller', port
         else:
             return 'unknown', port

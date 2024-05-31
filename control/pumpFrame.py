@@ -1,16 +1,13 @@
+# pumpFrame.py
 import customtkinter as tk
 from control.coms import Pump
-from utils.autodetect import identify_devices
 from queue import Empty
 
-
 class PumpFrame(tk.CTkFrame):
-    def __init__(self, master, height, width):
+    def __init__(self, master, height, width, port):
         super().__init__(master, height=height, width=width)
 
-        self.serial_ports = identify_devices()
-        self.pump_port, _ = self.serial_ports  # Unpack to get pump port
-
+        self.pump_port = port
         self.pump = Pump(self.pump_port)
         self.pump.start_thread()
 
