@@ -3,5 +3,25 @@
         "Name": "arnaud",
         "Duration": "4000",
         "Function": "20*(2/t)"
+    },
+    {
+        "Name": "50 deg 50 sex",
+        "Duration": "50",
+        "Function": "50"
+    },
+    {
+        "Name": "5 deg 50 sec",
+        "Duration": "50",
+        "Function": "5"
+    },
+    {
+        "Name": "5 deg 300 sec",
+        "Duration": "300",
+        "Function": "5"
+    },
+    {
+        "Name": "50 deg 300 sec",
+        "Duration": "300",
+        "Function": "50"
     }
 ]

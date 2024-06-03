@@ -1,6 +1,7 @@
 import customtkinter as tk
 import math
 
+
 class GraphFrame(tk.CTkFrame):
     def __init__(self, master, sequences_list, height, width):
         super().__init__(master, height=height, width=width)
