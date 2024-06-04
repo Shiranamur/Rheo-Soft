@@ -32,14 +32,15 @@ class Controller:
         self.port = port
         self.baud_rate = 115200
         self.ser = None
-        self.sequences = [[5, 5], [5, 50],[5, 5], [5, 50],[5, 5], [5, 50],[5, 5], [5, 50]]
+        self.sequences = [[5, 5], [5, 50], [5, 5], [5, 50], [5, 5], [5, 50], [5, 5], [5, 50]]
 
+        self.off_boolean = 0
         self.setpoint_boolean = 0
         self.end_of_sequences_boolean = 0
 
         self.read_r68 = '$REG 68\r\n'
         self.read_r65 = '$REG 65\r\n'
-        self.end_command = '$REG 2=0\r\n'
+        self.off_command = '$REG 2=0\r\n'
         self.set_temp = ''
 
         self._r68_output = None
@@ -52,11 +53,18 @@ class Controller:
     def connect(self):
         self.ser = serial.Serial(self.port, self.baud_rate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
 
-    def start_cycle_thread(self):
-        threading.Thread(target=self.read_cycle, daemon=True).start()
+    def send_off_command(self):
+        self.lock.acquire()
+        self.off_boolean += 1
+        self.lock.release()
 
     def start_send_command_thread(self):
         threading.Thread(target=self.send_command, daemon=True).start()
+
+    """ CYCLE MENU COMMANDS """
+
+    def start_cycle_thread(self):
+        threading.Thread(target=self.read_cycle, daemon=True).start()
 
     def read_cycle(self):
         while True:
@@ -73,6 +81,8 @@ class Controller:
                 print("Cycle ended, setting end_of_sequences to True")
                 break
 
+    """CYCLE MENU COMMANDS END"""
+
     def read_response(self):
         response = b""
         while True:
@@ -82,11 +92,11 @@ class Controller:
                 break
         return response.decode('ascii').strip()
 
-
     def send_command(self):
         while True:
             t_start = time.time()
             with self.lock:
+
                 if self.setpoint_boolean > 0:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
@@ -95,6 +105,10 @@ class Controller:
                     self.ser.write(self.set_temp.encode())
                     self.setpoint_ack = self.read_response()
                     self.setpoint_boolean -= 1
+
+                elif self.off_boolean > 0:
+                    self.ser.write(self.off_command.encode())
+
                 elif self.end_of_sequences_boolean > 0:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
@@ -103,18 +117,17 @@ class Controller:
                     self.ser.write(self.end_of_sequences_boolean)
                     self.end_cmd_ack = self.read_response()
                     self.end_of_sequences_boolean -= 1
+
                 else:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
                     self.ser.write(self.read_r65.encode())
                     self._r65_output = self.read_response()
+
             t_end = time.time()
             elapsed_time = t_end - t_start
-            sleept_time = max(0, 1 - elapsed_time)
-            time.sleep(sleept_time)
-
-
-
+            sleep_time = 0.5 - elapsed_time
+            time.sleep(sleep_time)
 
     # def send_command(self):
     #     while True:
@@ -151,5 +164,3 @@ class Controller:
     #         elapsed_time = t_end - t_start
     #         s_time = max(0, 1 - elapsed_time)
     #         time.sleep(s_time)
-
-

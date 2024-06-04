@@ -8,6 +8,8 @@ from cycleEditor.graph import GraphFrame
 from control.pumpFrame import PumpFrame
 from control.controlGraph import ControlGraphFrame
 from control.coms import Controller
+from control.controlMenu import ControlMenu
+
 
 class Tabview(tk.CTkTabview):
     def __init__(self, master, pump_port, controller_port):
@@ -25,16 +27,24 @@ class Tabview(tk.CTkTabview):
         """Create tab1 content"""
         self.create_pump_output(master=self.tab("Contrôle en direct"), width_percent=10, height_percent=5)
         self.create_control_graph(master=self.tab("Contrôle en direct"), width_percent=10, height_percent=5)
-        self.create_start_cycle_button(master=self.tab("Contrôle en direct"))
+        #  self.create_start_cycle_button(master=self.tab("Contrôle en direct"))
+
+        self.add_control_menu(master=self.tab("Contrôle en direct"), width_percent=15, height_percent=15)
 
         """Create tab2 content"""
         self.create_toolbox(master=self.tab("Editeur de Cycle"), width_percent=20)
         self.create_timeline(master=self.tab("Editeur de Cycle"), height_percent=20)
         self.create_graph(master=self.tab("Editeur de Cycle"), height_percent=80, width_percent=80)
 
-    def create_start_cycle_button(self, master):
-        self.start_cycle_button = tk.CTkButton(master, text="Launch Cycle", command=self.controller.start_cycle_thread)
-        self.start_cycle_button.pack(side=tk.LEFT)
+    def add_control_menu(self, master, width_percent, height_percent):
+        cm_width = int(self.winfo_screenwidth() * (width_percent / 100))
+        cm_height = int(self.winfo_screenheight() * (height_percent / 100))
+        self.create_control_menu = ControlMenu(master, height=cm_height, width=cm_width, controller=self.controller)
+        self.create_control_menu.pack()
+
+    #  def create_start_cycle_button(self, master):
+    #    self.start_cycle_button = tk.CTkButton(master, text="Launch Cycle", command=self.controller.start_cycle_thread)
+    #    self.start_cycle_button.pack(side=tk.LEFT)
 
     def create_pump_output(self, master, width_percent, height_percent):
         """Creates the pump output frame"""
