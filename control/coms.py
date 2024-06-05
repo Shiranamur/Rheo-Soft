@@ -37,6 +37,7 @@ class Controller:
         self.off_boolean = 0
         self.setpoint_boolean = 0
         self.end_of_sequences_boolean = 0
+        self.has_sent_off_command = 0
 
         self.read_r68 = '$REG 68\r\n'
         self.read_r65 = '$REG 65\r\n'
@@ -47,6 +48,7 @@ class Controller:
         self._r65_output = None
         self.setpoint_ack = None
         self.end_cmd_ack = None
+        self.off_ack = None
 
         self.lock = threading.Lock()
 
@@ -55,11 +57,12 @@ class Controller:
 
     def send_off_command(self):
         self.lock.acquire()
+        print("lock acquired")
         self.off_boolean += 1
         self.lock.release()
+        print("lock released")
 
-    def start_send_command_thread(self):
-        threading.Thread(target=self.send_command, daemon=True).start()
+
 
     """ CYCLE MENU COMMANDS """
 
@@ -92,6 +95,9 @@ class Controller:
                 break
         return response.decode('ascii').strip()
 
+    def start_send_command_thread(self):
+        threading.Thread(target=self.send_command, daemon=True).start()
+
     def send_command(self):
         while True:
             t_start = time.time()
@@ -100,35 +106,64 @@ class Controller:
                 if self.setpoint_boolean > 0:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
+                    print(self._r68_output)
                     self.ser.write(self.read_r65.encode())
                     self._r65_output = self.read_response()
+                    print(self._r65_output)
                     self.ser.write(self.set_temp.encode())
                     self.setpoint_ack = self.read_response()
+                    print(self.setpoint_ack)
                     self.setpoint_boolean -= 1
 
-                elif self.off_boolean > 0:
+                elif self.off_boolean > 0 and self.has_sent_off_command == 0:
+                    self.ser.write(self.read_r68.encode())
+                    self._r68_output = self.read_response()
+                    print(self._r68_output)
+                    self.ser.write(self.read_r65.encode())
+                    self._r65_output = self.read_response()
+                    print(self._r65_output)
                     self.ser.write(self.off_command.encode())
+                    self.off_ack = self.read_response()
+                    print(self.off_ack)
+                    self.has_sent_off_command += 1
+
+                elif self.off_boolean > 0 and self.has_sent_off_command == 1:
+                    self.ser.write(self.read_r68.encode())
+                    self._r68_output = self.read_response()
+                    print(self._r68_output)
+                    self.ser.write(self.read_r65.encode())
+                    self._r65_output = self.read_response()
+                    print(self._r65_output)
 
                 elif self.end_of_sequences_boolean > 0:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
+                    print(self._r68_output)
                     self.ser.write(self.read_r65.encode())
                     self._r65_output = self.read_response()
+                    print(self._r65_output)
                     self.ser.write(self.end_of_sequences_boolean)
                     self.end_cmd_ack = self.read_response()
+                    print(self.end_cmd_ack)
                     self.end_of_sequences_boolean -= 1
 
                 else:
                     self.ser.write(self.read_r68.encode())
                     self._r68_output = self.read_response()
+                    print(self._r68_output)
                     self.ser.write(self.read_r65.encode())
                     self._r65_output = self.read_response()
+                    print(self._r65_output)
 
             t_end = time.time()
             elapsed_time = t_end - t_start
             sleep_time = 0.5 - elapsed_time
             time.sleep(sleep_time)
 
+
+
+    def send_manuel_command(self):
+        pass
     # def send_command(self):
     #     while True:
     #         t_start = time.time()
