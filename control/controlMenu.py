@@ -15,20 +15,29 @@ class ControlMenu(tk.CTkFrame):
         self.tabview.add("PID")
         self.tabview.add("Auto Tune")
 
-        self.tabview.bind("<<NotebookTabChanged>>", self.on_tab_change)
+        # Start checking for tab changes
+        self.previous_tab = self.tabview.get()
+        self.check_tab_change()
 
+        # Off tab
         self.menu_off_frame = tk.CTkFrame(self.tabview.tab("Off"))
         self.menu_off_frame_button = tk.CTkButton(master=self.menu_off_frame, text="Turn OFF", command=self.controller.set_turn_off_flag)
         self.menu_off_frame_button.pack()
+        self.menu_off_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_off_frame, text="Log Data", command=self.toggle_logging)
+        self.menu_off_frame_logging_checkbox.pack()
         self.menu_off_frame.pack()
 
+        # Manuel tab
         self.menu_manuel_frame = tk.CTkFrame(self.tabview.tab("Manuel"))
         self.menu_manuel_frame_button = tk.CTkButton(master=self.menu_manuel_frame, text="Turn On", command=self.start_manual_mode)
         self.menu_manuel_frame_button.pack()
         self.menu_manuel_frame_entry_setpoint = tk.CTkEntry(self.menu_manuel_frame, width=width-20)
         self.menu_manuel_frame_entry_setpoint.pack()
+        self.menu_manuel_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_manuel_frame, text="Log Data", command=self.toggle_logging)
+        self.menu_manuel_frame_logging_checkbox.pack()
         self.menu_manuel_frame.pack()
 
+        # PID tab
         self.menu_pid_frame = tk.CTkFrame(self.tabview.tab("PID"))
         self.menu_pid_frame_new_temp = tk.CTkEntry(self.menu_pid_frame, placeholder_text="New Temp")
         self.menu_pid_frame_new_temp.pack()
@@ -56,13 +65,18 @@ class ControlMenu(tk.CTkFrame):
 
         self.menu_pid_frame_button = tk.CTkButton(master=self.menu_pid_frame, text="Start with current PID value", command=self.start_pid_mode)
         self.menu_pid_frame_button.pack()
+        self.menu_pid_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_pid_frame, text="Log Data", command=self.toggle_logging)
+        self.menu_pid_frame_logging_checkbox.pack()
         self.menu_pid_frame.pack()
 
+        # Auto Tune tab
         self.menu_autotune_frame = tk.CTkFrame(self.tabview.tab("Auto Tune"))
         self.menu_autotune_frame_button = tk.CTkButton(master=self.menu_autotune_frame, text="Start Autotune", command=self.start_autotune)
         self.menu_autotune_frame_button.pack()
         self.menu_autotune_status_textbox = tk.CTkTextbox(master=self.menu_autotune_frame, width=width-20, height=100)
         self.menu_autotune_status_textbox.pack()
+        self.menu_autotune_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_autotune_frame, text="Log Data", command=self.toggle_logging)
+        self.menu_autotune_frame_logging_checkbox.pack()
         self.menu_autotune_frame.pack()
 
     def start_manual_mode(self):
@@ -83,7 +97,17 @@ class ControlMenu(tk.CTkFrame):
         self.menu_autotune_status_textbox.delete("1.0", tk.END)
         self.menu_autotune_status_textbox.insert(tk.END, message)
 
-    def on_tab_change(self, event):
+    def on_tab_change(self):
         selected_tab = self.tabview.get()  # Get the name of the selected tab
         if selected_tab == "PID":
             self.controller.read_pid_values = True
+
+    def toggle_logging(self):
+        self.controller.set_logging()
+
+    def check_tab_change(self):
+        current_tab = self.tabview.get()
+        if current_tab != self.previous_tab:
+            self.on_tab_change()
+            self.previous_tab = current_tab
+        self.after(100, self.check_tab_change)  # Check every 100ms

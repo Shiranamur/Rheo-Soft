@@ -84,7 +84,7 @@ class Tabview(tk.CTkTabview):
         self.toolbox.pack_propagate(False)
         print("Toolbox packed")
 
-    def create_timeline(self, master, height_percent):
+    def create_timeline(self, master , height_percent):
         """Creates the timeline canvas in second tab"""
         print("Creating timeline with height_percent:", height_percent)
         tl_height = int(self.winfo_screenheight()) * (height_percent / 100)

@@ -5,7 +5,8 @@ from cycleEditor.SeqOptMenu import SeqOptMenu
 class TimelineCanvas(tk.CTkCanvas):
     def __init__(self, master, height):
         super().__init__(master, height=height)
-        self.range = 1000
+        self.default_range = 1000  # Define a default range
+        self.range = self.default_range
         self.var_zoom = tk.IntVar(value=1)
         self.visible_range = self.range / self.var_zoom.get()
         self.height = height
@@ -74,8 +75,12 @@ class TimelineCanvas(tk.CTkCanvas):
             self.update_zoom()
 
     def update_range(self):
-        total_duration = sum(int(seq["Duration"]) for seq in self.sequences_list)
-        self.range = total_duration * 1.05
+        if self.sequences_list:
+            total_duration = sum(int(seq["Duration"]) for seq in self.sequences_list)
+            self.range = total_duration * 1.05
+        else:
+            self.range = self.default_range
+        self.update_zoom()
 
     def add_sequence(self, sequence_name):
         self.all_sequences = sequences_reader()

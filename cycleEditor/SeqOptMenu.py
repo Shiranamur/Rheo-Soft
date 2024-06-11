@@ -70,4 +70,6 @@ class SeqOptMenu:
 
     def recalculate_start_times(self):
         for i in range(1, len(self.sequences_list)):
-            self.sequences_list[i]["start_time"] = self.sequences_list[i-1]["start_time"] + self.sequences_list[i-1]["Duration"]
+            self.sequences_list[i]["start_time"] = (
+                    self.sequences_list[i - 1]["start_time"] + int(self.sequences_list[i - 1]["Duration"])
+            )

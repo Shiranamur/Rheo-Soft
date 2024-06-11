@@ -2,7 +2,8 @@ import threading
 import serial
 import time
 import re
-
+import queue
+import os
 
 class Controller:
     def __init__(self, port, status_callback=None):
@@ -40,6 +41,16 @@ class Controller:
         self.r68_output = ""
         self.r65_output = ""
 
+        self.logging = False
+        self.data_queue = queue.Queue()
+        self.log_dir = 'cycle_log'
+        os.makedirs(self.log_dir, exist_ok=True)
+        self.log_file = os.path.join(self.log_dir, 'sensor_data.log')
+
+    def set_logging(self):
+        with self.lock:
+            self.logging = not self.logging
+
     def set_read_pid_values(self):
         with self.lock:
             self.read_pid_values = True
@@ -70,10 +81,10 @@ class Controller:
 
     def start_engine_thread(self):
         threading.Thread(target=self.engine, daemon=True).start()
-        print("engine thread started")
+        threading.Thread(target=self.log_data_thread, daemon=True).start()
+
 
     def engine(self):
-        print("engine starting")
         while True:
             t_start = time.time()
             with self.lock:  # acquire mutex to avoid race condition
@@ -208,16 +219,22 @@ class Controller:
                             if self.write_pid_values():
                                 self.start_pid = False
 
+            """Cycle logic"""
+            if self.start_cycle:
+                self.start_fans()
+
+
+
             t_end = time.time()
             elapsed_time = t_end - t_start
             sleep_time = 0.5 - elapsed_time
             time.sleep(sleep_time)
 
     def extract_float(self, ack):
-        pattern = r'[-+]?\d*\.\d+|[-+]?\d+'
+        pattern = r'=(\-?\d+(\.\d+)?)'
         match = re.search(pattern, ack)
         if match:
-            return float(match.group())
+            return float(match.group(1))
         else:
             return None
 
@@ -232,6 +249,9 @@ class Controller:
         ack = self.read_response().strip()
         self.r65_output = self.extract_float(ack)
         print(self.r65_output)
+
+        if self.logging:
+            self.data_queue.put((time.time(), self.r68_output, self.r65_output))
 
     def start_fans(self):
         """Start fan PSU output to 5v"""
@@ -267,3 +287,10 @@ class Controller:
         self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
         ack = self.read_response()
         return "?" not in ack and f"REG 4={self.temp_value}" in ack
+
+    def log_data_thread(self):
+        while True:
+            data = self.data_queue.get()  # This will block until data is available
+            with open(self.log_file, 'a') as f:
+                f.write(f"{data[0]},{data[1]},{data[2]}\n")
+

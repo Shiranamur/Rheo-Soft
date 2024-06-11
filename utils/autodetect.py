@@ -1,7 +1,6 @@
 import sys
 import glob
 import serial
-import time
 
 
 def list_serial_ports():
@@ -42,7 +41,8 @@ def read_and_identify(port):
         print(f"terminated connection to {port}")
 
         if data == '':
-            ser = serial.Serial(port, baudrate=115200, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, timeout=30)
+            ser = serial.Serial(port, baudrate=115200, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS,
+                                parity=serial.PARITY_NONE, timeout=30)
             command = '$ID\r\n'
             ser.write(command.encode())
             data = ser.read_until(b'\r\n').decode().strip()
