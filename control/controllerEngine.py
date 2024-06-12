@@ -5,6 +5,7 @@ import re
 import queue
 import os
 
+
 class Controller:
     def __init__(self, port, status_callback=None):
         self.port = port
@@ -32,7 +33,7 @@ class Controller:
         self.r6_gain_value = 0  # I gain value
         self.r7_gain_value = 0  # D gain value
 
-        self.autotune_mode = False
+        self.autotune_started = False
         self.start_autotune = False
         self.status_callback = status_callback
 
@@ -54,6 +55,7 @@ class Controller:
     def set_read_pid_values(self):
         with self.lock:
             self.read_pid_values = True
+        print("Read PID values flag set")
 
     def set_turn_off_flag(self):
         with self.lock:
@@ -67,14 +69,24 @@ class Controller:
     def set_start_autotune_flag(self):
         with self.lock:
             self.start_autotune = True
+        print("Autotune flag set")
 
     def set_pid_flag(self, new_temp_entry, entry_p_value, entry_i_value, entry_d_value):
         with self.lock:
             self.start_pid = True
             self.temp_value = new_temp_entry
-            self.new_p_value = entry_p_value
-            self.new_i_value = entry_i_value
-            self.new_d_value = entry_d_value
+            if entry_p_value:
+                self.new_p_value = entry_p_value
+            else:
+                self.new_p_value = self.r5_gain_value
+            if entry_i_value:
+                self.new_i_value = entry_i_value
+            else:
+                self.new_i_value = self.r6_gain_value
+            if entry_d_value:
+                self.new_d_value = entry_d_value
+            else:
+                self.new_d_value = self.r7_gain_value
 
     def connect(self):
         self.ser = serial.Serial(self.port, self.baudrate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
@@ -83,8 +95,8 @@ class Controller:
         threading.Thread(target=self.engine, daemon=True).start()
         threading.Thread(target=self.log_data_thread, daemon=True).start()
 
-
     def engine(self):
+        self.start_fan()
         while True:
             t_start = time.time()
             with self.lock:  # acquire mutex to avoid race condition
@@ -107,7 +119,6 @@ class Controller:
 
                 """Manual mode logic"""
                 if self.start_manual:  # Check if user set manual run mode flag
-                    self.start_fans()
                     if self.is_running:  # Check if controller is already running
                         self.ser.write("$REG 2\r\n".encode())  # ask controller the value of run register
                         ack = self.read_response()  # store controller acknowledgement
@@ -138,43 +149,17 @@ class Controller:
 
                 """autotune logic"""
                 if self.start_autotune:
-                    self.start_fans()
-
-                    if not self.is_running:
-                        self.ser.write("$REG 2=4\r\n".encode())
-                        ack = self.read_response()
-                        if "REG 2=4" in ack:
-                            self.autotune_mode = True
-                            self.is_running = True
-                            self.update_status("Auto-tune starting")
-
-                    if self.autotune_mode:
-                        self.ser.write("$REG 2=4\r\n".encode())
-                        ack = self.read_response()
-                        if "REG 2=4" in ack:
-                            self.manual_mode = False
-                            self.pid_mode = False
-                            self.cycle_mode = False
-
-                        self.ser.write("$REG 1\r\n".encode())
-                        ack = self.read_response()
-                        parsed_ack = ack.strip()[-2:]
-
-                        if "=" in parsed_ack:
-                            self.update_status("Auto-tune running")
-                        elif "11" in parsed_ack:
-                            self.update_status("Auto-tune successful")
-                            self.start_autotune = False
-                            self.autotune_mode = False
-                            self.turn_off = True
-                        elif "12" in parsed_ack:
-                            self.update_status("Auto-tune failed")
-                            self.start_autotune = False
-                            self.autotune_mode = False
-                            self.turn_off = True
+                    self.ser.write("$REG 2=4\r\n".encode())
+                    ack = self.read_response()
+                    if "REG 2=4" in ack:
+                        self.start_autotune = False
+                        self.autotune_started = True
+                if self.autotune_started:
+                    self.read_autotune_value()
 
                 """Read PID Values Logic"""
                 if self.read_pid_values:
+                    print("Reading PID values")
                     for i in range(5, 8):  # Loop over register numbers 5, 6, 7
                         self.ser.write(f"$REG {i}\r\n".encode())
                         ack = self.read_response().strip()
@@ -185,11 +170,11 @@ class Controller:
                             self.r6_gain_value = gain_value
                         elif i == 7:
                             self.r7_gain_value = gain_value
+                        print(f"Read value for REG {i}: {gain_value}")
                     self.read_pid_values = False
 
                 """PID logic"""
                 if self.start_pid:
-                    self.start_fans()
 
                     if self.is_running:
                         self.ser.write("$REG 2\r\n".encode())
@@ -221,9 +206,7 @@ class Controller:
 
             """Cycle logic"""
             if self.start_cycle:
-                self.start_fans()
-
-
+                pass
 
             t_end = time.time()
             elapsed_time = t_end - t_start
@@ -236,6 +219,7 @@ class Controller:
         if match:
             return float(match.group(1))
         else:
+            print(f"Failed to extract float from ack: {ack}")
             return None
 
     def read_sensors(self):
@@ -243,19 +227,22 @@ class Controller:
         self.ser.write("$REG 68\r\n".encode())
         ack = self.read_response().strip()
         self.r68_output = self.extract_float(ack)
-        print(self.r68_output)
+        # print(self.r68_output)
 
         self.ser.write("$REG 65\r\n".encode())
         ack = self.read_response().strip()
         self.r65_output = self.extract_float(ack)
-        print(self.r65_output)
+        # print(self.r65_output)
 
         if self.logging:
             self.data_queue.put((time.time(), self.r68_output, self.r65_output))
 
-    def start_fans(self):
-        """Start fan PSU output to 5v"""
-        self.ser.write("$REG 63=1\r\n".encode())
+    def stop_fan(self):
+        self.ser.write("$REG 39=0\r\n".encode())
+        ack = self.read_response()
+
+    def start_fan(self):
+        self.ser.write("$REG 39=1\r\n".encode())
         ack = self.read_response()
 
     def read_response(self):
@@ -268,6 +255,7 @@ class Controller:
         return response.decode('ascii').strip()
 
     def update_status(self, message):
+        print(f"Updating status: {message}")
         if self.status_callback:
             self.status_callback(message)
 
@@ -281,7 +269,8 @@ class Controller:
         self.read_pid_values = True
         self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
         ack = self.read_response()
-        return f"REG 4={self.temp_value}" in ack
+        if f"REG 4={self.temp_value}" in ack:
+            return True
 
     def write_temp_value(self):
         self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
@@ -294,3 +283,20 @@ class Controller:
             with open(self.log_file, 'a') as f:
                 f.write(f"{data[0]},{data[1]},{data[2]}\n")
 
+    def read_autotune_value(self):
+        self.ser.write("$REG 1".encode())
+        ack = self.read_response().strip()
+        if ack.startswith("REG 1="):
+            reg_value = int(ack.split("=")[1])
+            if (reg_value & (1 << 11)) != 0:
+                self.status_callback = "Autotune complete"
+                self.autotune_started = False
+                self.ser.write("$REG 2=0\r\n".encode())
+                ack = self.read_response()
+            elif (reg_value & (1 << 12)) != 0:
+                self.status_callback = "Autotune failed"
+                self.autotune_started = False
+                self.ser.write("$REG 2=0\r\n".encode())
+                ack = self.read_response()
+            else:
+                self.status_callback = "Autotune in progress"
