@@ -25,9 +25,6 @@ class ControlMenu(tk.CTkFrame):
         self.menu_off_frame_button = tk.CTkButton(master=self.menu_off_frame, text="Turn OFF",
                                                   command=self.controller.set_turn_off_flag)
         self.menu_off_frame_button.pack()
-        self.menu_off_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_off_frame, text="Log Data",
-                                                              command=self.toggle_logging)
-        self.menu_off_frame_logging_checkbox.pack()
         self.menu_off_frame.pack()
 
         # Manuel tab
@@ -89,18 +86,17 @@ class ControlMenu(tk.CTkFrame):
         self.menu_autotune_frame_logging_checkbox.pack()
         self.menu_autotune_frame.pack()
 
-        # Start refreshing the auto-tune status label
-        self.refresh_autotune_status()
-
     def start_manual_mode(self):
         temp_value = self.menu_manuel_frame_entry_setpoint.get()
         self.controller.set_manual_mode_flag(temp_value)
 
     def start_pid_mode(self):
+        print("start_pid_mode initiated")
         new_temp = self.menu_pid_frame_new_temp.get()
         new_p_gain = self.menu_pid_frame_new_p_gain.get()
         new_i_gain = self.menu_pid_frame_new_i_gain.get()
         new_d_gain = self.menu_pid_frame_new_d_gain.get()
+        print(f"transfering values to controller : {new_p_gain}, {new_i_gain}, {new_d_gain}")
         self.controller.set_pid_flag(new_temp, new_p_gain, new_i_gain, new_d_gain)
 
         # Reset the entry boxes
@@ -109,28 +105,29 @@ class ControlMenu(tk.CTkFrame):
         self.menu_pid_frame_new_i_gain.delete(0, tk.END)
         self.menu_pid_frame_new_d_gain.delete(0, tk.END)
 
-        # Update labels after 1 second
-        self.after(1000, self.update_pid_labels)
+        self.after(500, self.update_pid_labels)
 
     def start_autotune(self):
-        print("Starting autotune...")
         self.controller.set_start_autotune_flag()
 
     def update_autotune_status(self, message):
-        print(f"Updating autotune status: {message}")
         self.menu_autotune_status_label.configure(text=message)
 
     def refresh_autotune_status(self):
-        print("Refreshing autotune status...")
-        if self.controller.status_callback:
-            self.menu_autotune_status_label.configure(text=self.controller.status_callback)
-        self.after(1000, self.refresh_autotune_status)  # Refresh every 1 second
+        if self.tabview.get() == "Auto Tune":
+            if self.controller.status_callback:
+                self.menu_autotune_status_label.configure(text=self.controller.status_callback)
+            self.after(1000, self.refresh_autotune_status)  # Refresh every 1 second
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()  # Get the name of the selected tab
         if selected_tab == "PID":
             self.controller.set_read_pid_values()
-        self.after(500, self.update_pid_labels)  # Update labels after a delay to ensure values are read
+            self.after(500, self.update_pid_labels())
+        if selected_tab == "Auto Tune":
+            self.refresh_autotune_status()  # Start refreshing the status only when on the Auto Tune tab
+
+    # Update labels after a delay to ensure values are read
 
     def toggle_logging(self):
         self.controller.set_logging()

@@ -72,21 +72,34 @@ class Controller:
         print("Autotune flag set")
 
     def set_pid_flag(self, new_temp_entry, entry_p_value, entry_i_value, entry_d_value):
+        print(f"received following values from gui : temp = {new_temp_entry}, p = {entry_p_value}, i = {entry_i_value}, d = {entry_d_value}")
         with self.lock:
-            self.start_pid = True
-            self.temp_value = new_temp_entry
+            if new_temp_entry:
+                self.temp_value = new_temp_entry
+                print(f"New temp entry found : {self.temp_value}")
+            else:
+                self.temp_value = None
+                print(f"No temp entry received : {self.temp_value}")
             if entry_p_value:
                 self.new_p_value = entry_p_value
+                print(f"New PID value found : {self.new_p_value}")
             else:
                 self.new_p_value = self.r5_gain_value
+                print(f"No new P value found, attributing old : {self.r5_gain_value} to new : {self.new_p_value}")
             if entry_i_value:
                 self.new_i_value = entry_i_value
+                print(f"New I value found : {self.new_i_value}")
             else:
                 self.new_i_value = self.r6_gain_value
+                print(f"No new I value found, attributing old : {self.r6_gain_value} to new : {self.new_i_value}")
             if entry_d_value:
                 self.new_d_value = entry_d_value
+                print(f"New D value found : {self.new_d_value}")
             else:
                 self.new_d_value = self.r7_gain_value
+                print(f"No new D value found, attributing old : {self.r7_gain_value} to new : {self.new_d_value}")
+            self.start_pid = True
+            print("Start PID falg set")
 
     def connect(self):
         self.ser = serial.Serial(self.port, self.baudrate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
@@ -96,20 +109,18 @@ class Controller:
         threading.Thread(target=self.log_data_thread, daemon=True).start()
 
     def engine(self):
-        self.start_fan()
         while True:
             t_start = time.time()
             with self.lock:  # acquire mutex to avoid race condition
                 self.read_sensors()
+                self.read_alarm_reg()
 
                 """turn_off logic"""
                 if self.turn_off:  # check turn_off flag
-                    self.ser.write("$REG 63=0\r\n".encode())  # turn off fans
-                    ack = self.read_response()
                     self.ser.write("$REG 2=0\r\n".encode())  # Send off value to controller
                     ack = self.read_response()  # store controller acknowledgement
 
-                    if "REG 2=0" in ack and "?" not in ack:  # if controller ack contains right reg value and recognize command
+                    if "REG 2=0" in ack:  # if controller ack contains right reg value and recognize command
                         self.is_running = False
                         self.manual_mode = False
                         self.cycle_mode = False
@@ -175,43 +186,60 @@ class Controller:
 
                 """PID logic"""
                 if self.start_pid:
-
+                    print("Set PID flag found, entering PID logic")
                     if self.is_running:
+                        print("Controller already running")
                         self.ser.write("$REG 2\r\n".encode())
                         ack = self.read_response()
                         if "REG 2=3" in ack:
+                            print(f"Controller already running in PID mode : {ack}")
                             # Already in PID mode
-                            if self.write_pid_values():
-                                self.start_pid = False
+                            self.write_pid_values()
+                            print("write pid function executed")
+                            self.start_pid = False
+                            print("start pid flag set to False")
                         else:
+                            print(f"Controller running in another mode : {ack}")
                             # Not in PID mode, switch to PID mode
                             self.ser.write("$REG 2=3\r\n".encode())
                             ack = self.read_response()
                             if "REG 2=3" in ack:
+                                print("Switching to PID mode")
                                 self.manual_mode = False
                                 self.cycle_mode = False
                                 self.autotune_mode = False
                                 self.pid_mode = True
-                                if self.write_pid_values():
-                                    self.start_pid = False
+                                self.write_pid_values()
+                                print("write pid function executed")
+                                self.start_pid = False
+                                print("start pid flag set to False")
                     else:
                         # Controller is not running, start it and switch to PID mode
+                        print("Controller not running... starting")
                         self.ser.write("$REG 2=3\r\n".encode())
                         ack = self.read_response()
+                        print(f"Received ack for starting in PID mode: {ack}")
                         if "REG 2=3" in ack:
+                            print("controller started in pid mode")
                             self.is_running = True
                             self.pid_mode = True
-                            if self.write_pid_values():
-                                self.start_pid = False
+                            self.write_pid_values()
+                            print("write pid function executed")
+                            self.start_pid = False
+                            print("start pid flag set to False")
+                        else:
+                            print("Failed to start controller in PID mode")
 
-            """Cycle logic"""
-            if self.start_cycle:
-                pass
+                """Cycle logic"""
+                if self.start_cycle:
+                    pass
 
             t_end = time.time()
             elapsed_time = t_end - t_start
             sleep_time = 0.5 - elapsed_time
-            time.sleep(sleep_time)
+            print(elapsed_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     def extract_float(self, ack):
         pattern = r'=(\-?\d+(\.\d+)?)'
@@ -243,7 +271,7 @@ class Controller:
 
     def start_fan(self):
         self.ser.write("$REG 39=1\r\n".encode())
-        ack = self.read_response()
+        ack=self.read_response()
 
     def read_response(self):
         response = b""
@@ -260,17 +288,29 @@ class Controller:
             self.status_callback(message)
 
     def write_pid_values(self):
+        print("Writing PID Values")
         self.ser.write(f"$REG 5={self.new_p_value}\r\n".encode())
         ack = self.read_response()
+        print(f"$REG 5={self.new_p_value}")
         self.ser.write(f"$REG 6={self.new_i_value}\r\n".encode())
         ack = self.read_response()
+        print(f"$REG 6={self.new_i_value}")
         self.ser.write(f"$REG 7={self.new_d_value}\r\n".encode())
         ack = self.read_response()
+        print(f"$REG 7={self.new_d_value}")
         self.read_pid_values = True
-        self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
-        ack = self.read_response()
-        if f"REG 4={self.temp_value}" in ack:
-            return True
+        print("read_pid_values flag set")
+
+        if self.temp_value:
+            print("Found new temperature")
+            self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
+            ack = self.read_response()
+            print(f"Received ack for temp value: {ack}")
+            if f"REG 4={self.temp_value}" in ack:
+                print(f"New temp set to {self.temp_value}")
+        else:
+            print("No new temp found, ignoring temp")
+
 
     def write_temp_value(self):
         self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
@@ -284,7 +324,7 @@ class Controller:
                 f.write(f"{data[0]},{data[1]},{data[2]}\n")
 
     def read_autotune_value(self):
-        self.ser.write("$REG 1".encode())
+        self.ser.write("$REG 1\r\n".encode())
         ack = self.read_response().strip()
         if ack.startswith("REG 1="):
             reg_value = int(ack.split("=")[1])
@@ -300,3 +340,13 @@ class Controller:
                 ack = self.read_response()
             else:
                 self.status_callback = "Autotune in progress"
+
+    def read_alarm_reg(self):
+        self.ser.write("$REG 38\r\n".encode())
+        ack = self.read_response().strip()
+        print(ack)
+        if ack.startswith("REG 38="):
+            reg_value = int(ack.split("=")[1])
+            for i in range(8):
+                if reg_value & (1 << i) != 0:
+                    self.start_fan()
