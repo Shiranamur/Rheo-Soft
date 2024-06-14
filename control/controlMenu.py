@@ -3,14 +3,13 @@ import customtkinter as tk
 
 class ControlMenu(tk.CTkFrame):
     def __init__(self, master, height, width, controller):
-        super().__init__(master, height=height, width=width, border_width=2, corner_radius=0)
+        super().__init__(master, height=height, width=width, border_width=2)
         self.controller = controller
         self.controller.start_engine_thread()
 
         self.tabview = tk.CTkTabview(self, height=height - 10, width=width - 10)
         self.tabview.pack(padx=5, pady=5)
 
-        self.tabview.add("Off")
         self.tabview.add("Manuel")
         self.tabview.add("Cycle")
         self.tabview.add("PID")
@@ -19,13 +18,6 @@ class ControlMenu(tk.CTkFrame):
         # Start checking for tab changes
         self.previous_tab = self.tabview.get()
         self.check_tab_change()
-
-        # Off tab
-        self.menu_off_frame = tk.CTkFrame(self.tabview.tab("Off"))
-        self.menu_off_frame_button = tk.CTkButton(master=self.menu_off_frame, text="Turn OFF",
-                                                  command=self.controller.set_turn_off_flag)
-        self.menu_off_frame_button.pack()
-        self.menu_off_frame.pack()
 
         # Manuel tab
         self.menu_manuel_frame = tk.CTkFrame(self.tabview.tab("Manuel"))
@@ -91,12 +83,10 @@ class ControlMenu(tk.CTkFrame):
         self.controller.set_manual_mode_flag(temp_value)
 
     def start_pid_mode(self):
-        print("start_pid_mode initiated")
         new_temp = self.menu_pid_frame_new_temp.get()
         new_p_gain = self.menu_pid_frame_new_p_gain.get()
         new_i_gain = self.menu_pid_frame_new_i_gain.get()
         new_d_gain = self.menu_pid_frame_new_d_gain.get()
-        print(f"transfering values to controller : {new_p_gain}, {new_i_gain}, {new_d_gain}")
         self.controller.set_pid_flag(new_temp, new_p_gain, new_i_gain, new_d_gain)
 
         # Reset the entry boxes
@@ -143,3 +133,129 @@ class ControlMenu(tk.CTkFrame):
         self.menu_pid_frame_current_p_gain.configure(text=f"Current P Gain Value: {self.controller.r5_gain_value}")
         self.menu_pid_frame_current_i_gain.configure(text=f"Current I Gain Value: {self.controller.r6_gain_value}")
         self.menu_pid_frame_current_d_gain.configure(text=f"Current D Gain Value: {self.controller.r7_gain_value}")
+
+
+class AlarmMenu(tk.CTkFrame):
+    def __init__(self, master, height, width, controller):
+        super().__init__(master, height=height, width=width, border_width=2)
+        self.controller = controller
+
+        self.tabview = tk.CTkTabview(self, height=height - 10, width=width - 10)
+        self.tabview.pack(padx=5, pady=5)
+
+        self.tabview.add("Alarm Temps")
+        self.tabview.add("Alarm Enable")
+
+        self.temp_frame = tk.CTkFrame(self.tabview.tab("Alarm Temps"), height=height - 10, width=width - 10)
+        self.temp_frame.pack(padx=5, pady=5)
+
+        self.sensor_d_hightemp_entry = tk.CTkEntry(self.temp_frame, placeholder_text="Sensor D High temperature alarm temp")
+        self.sensor_d_hightemp_entry.pack(padx=5, pady=5)
+
+        self.sensor_d_lowtemp_entry = tk.CTkEntry(self.temp_frame, placeholder_text="Sensor D Low temperature alarm temp")
+        self.sensor_d_lowtemp_entry.pack(padx=5, pady=5)
+
+        self.sensor_a_hightemp_entry = tk.CTkEntry(self.temp_frame, placeholder_text="Sensor A High temperature alarm temp")
+        self.sensor_a_hightemp_entry.pack(padx=5, pady=5)
+
+        self.sensor_a_lowtemp_entry = tk.CTkEntry(self.temp_frame, placeholder_text="Sensor A Low temperature alarm temp")
+        self.sensor_a_lowtemp_entry.pack(padx=5, pady=5)
+
+    def set_and_send_alarm_temps(self):
+        sdht = self.sensor_d_hightemp_entry.get()
+        sdlt = self.sensor_d_lowtemp_entry.get()
+        saht = self.sensor_a_hightemp_entry.get()
+        salt = self.sensor_a_lowtemp_entry.get()
+        self.controller.set_alarm_temps(sdht, sdlt, saht, salt)
+
+
+class StatusMenu(tk.CTkFrame):
+    def __init__(self, master, height, width, controller, pump):
+        super().__init__(master, height=height, width=width, border_width=2)
+        self.controller = controller
+        self.pump = pump
+
+        self.tabview = tk.CTkTabview(self, height=height - 10, width=width - 10)
+        self.tabview.pack(padx=5, pady=5)
+        self.tabview.add("Status Tab")
+
+        # Off button frame taking 60% of the master size
+        self.off_button_frame = tk.CTkFrame(self.tabview.tab("Status Tab"), height=int((height - 10) * 0.5), width=width - 10)
+        self.off_button_frame.pack_propagate(False)
+        self.off_button_frame.pack(fill="both", expand=True)
+
+        # Turn OFF button big, red, filling its frame
+        self.off_button = tk.CTkButton(master=self.off_button_frame, text="Turn OFF",
+                                       command=self.controller.set_turn_off_flag,
+                                       fg_color="red",
+                                       text_color="white",
+                                       height=int((height - 10) * 0.45), width=width - 10)
+        self.off_button.pack(fill="both", expand=True, padx=25, pady=35)
+        self.off_button.configure(font=("Helvetica", 20))
+
+        # Controller and pump status frames each taking 30% of the available height
+        self.controller_status_frame = tk.CTkFrame(self.tabview.tab("Status Tab"), height=int((height - 10) * 0.3), width=(width - 20) // 2)
+        self.controller_status_frame.pack_propagate(False)
+        self.controller_status_frame.pack(side=tk.LEFT, fill="both", expand=True)
+
+        self.pump_status_frame = tk.CTkFrame(self.tabview.tab("Status Tab"), height=int((height - 10) * 0.3), width=(width - 20) // 2)
+        self.pump_status_frame.pack_propagate(False)
+        self.pump_status_frame.pack(side=tk.RIGHT, fill="both", expand=True)
+
+        # Create the status labels and dots
+        self.controller_status_label = tk.CTkLabel(self.controller_status_frame, text="Controller Status:")
+        self.controller_status_label.pack(anchor="center")
+        self.controller_status_label.configure(font=("Helvetica", 16))
+
+        self.status_dot_controller = tk.CTkCanvas(self.controller_status_frame, width=30, height=30, bg="#2b2b2b",  highlightthickness=0)
+        self.status_dot_controller.create_oval(2, 2, 28, 28)
+        self.status_dot_controller.pack(anchor="center")
+
+        self.pump_status_label = tk.CTkLabel(self.pump_status_frame, text="Pump Status:")
+        self.pump_status_label.pack(anchor="center")
+        self.pump_status_label.configure(font=("Helvetica", 16))
+
+        self.status_dot_pump = tk.CTkCanvas(self.pump_status_frame, width=30, height=30, bg="#2b2b2b", highlightthickness=0)
+        self.status_dot_pump.create_oval(2, 2, 28, 28)
+        self.status_dot_pump.pack(anchor="center")
+
+        # Create pump volume label
+        self.pump_volume_label = tk.CTkLabel(self.pump_status_frame, text="Pump Volume: -")
+        self.pump_volume_label.pack(anchor="center")
+        self.pump_volume_label.configure(font=("Helvetica", 16))
+
+        # Start periodic check for controller and pump statuses
+        self.check_controller_status()
+        self.check_pump_status()
+        self.update_pump_volume()
+
+    def check_controller_status(self):
+        if self.controller.is_running:
+            color = 'green'
+        else:
+            color = 'red'
+        self.status_dot_controller.create_oval(2, 2, 28, 28, fill=color)
+        self.after(2000, self.check_controller_status)
+
+    def check_pump_status(self):
+        if self.pump.is_connected() and not self.pump.data_queue.empty():
+            color = 'green'
+        else:
+            color = 'red'
+        self.status_dot_pump.create_oval(2, 2, 28, 28, fill=color)
+        self.after(2000, self.check_pump_status)
+
+    def update_pump_volume(self):
+        pump_volume = self.pump.get_data()
+        if pump_volume is not None:
+            self.pump_volume_label.configure(text=f"Pump Volume: {pump_volume}")
+        else:
+            if self.pump.is_connected():
+                self.pump_volume_label.configure(text="Pump Volume: - (Waiting for data)")
+            else:
+                self.pump_volume_label.configure(text="Pump Volume: - (Serial connection closed)")
+        self.after(1000, self.update_pump_volume)
+
+
+
+

@@ -42,11 +42,43 @@ class Controller:
         self.r68_output = ""
         self.r65_output = ""
 
+        self.new_alarm_temp_flag = False
+        self.r68_alarm_new_temp_high = None
+        self.r68_alarm_new_temp_low = None
+        self.r65_alarm_new_temp_high = None
+        self.r65_alarm_new_temp_low = None
+
+
+
+
+
         self.logging = False
         self.data_queue = queue.Queue()
         self.log_dir = 'cycle_log'
         os.makedirs(self.log_dir, exist_ok=True)
         self.log_file = os.path.join(self.log_dir, 'sensor_data.log')
+
+
+    def set_alarm_temp(self, r68_new_high_temp, r68_new_low_temp, r65_new_high_temp, r65_new_low_temp):
+        with self.lock:
+            if r68_new_high_temp:
+                self.r65_alarm_new_temp_high = r68_new_high_temp
+            else:
+                self.r68_alarm_new_temp_high = None
+            if r68_new_low_temp:
+                self.r68_alarm_new_temp_low = r68_new_low_temp
+            else:
+                self.r68_alarm_new_temp_low = None
+            if r65_new_high_temp:
+                self.r65_alarm_new_temp_high = r65_new_high_temp
+            else:
+                self.r65_alarm_new_temp_high = None
+            if r65_new_low_temp:
+                self.r65_alarm_new_temp_low = r65_new_low_temp
+            else:
+                self.r65_alarm_new_temp_low = None
+
+            self.new_alarm_temp_flag = True
 
     def set_logging(self):
         with self.lock:
@@ -101,7 +133,7 @@ class Controller:
             self.start_pid = True
             print("Start PID falg set")
 
-    def connect(self):
+    def connect_controller(self):
         self.ser = serial.Serial(self.port, self.baudrate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
 
     def start_engine_thread(self):
@@ -230,6 +262,10 @@ class Controller:
                         else:
                             print("Failed to start controller in PID mode")
 
+                """Alarm Logic"""
+
+                if self.new_alarm_temp_flag:
+                    self.write_alarm_temp_value()
                 """Cycle logic"""
                 if self.start_cycle:
                     pass
@@ -240,6 +276,22 @@ class Controller:
             print(elapsed_time)
             if sleep_time > 0:
                 time.sleep(sleep_time)
+
+
+    def write_alarm_temp_value(self):
+        if self.r68_alarm_new_temp_high:
+            self.ser.write(f"$REG 33 = {self.r68_alarm_new_temp_high}\r\n".encode())
+            ack = self.read_response()
+        if self.r68_alarm_new_temp_low:
+            self.ser.write(f"$REG 33 = {self.r68_alarm_new_temp_low}\r\n".encode())
+            ack = self.read_response()
+        if self.r65_alarm_new_temp_high:
+            self.ser.write(f"$REG 27 = {self.r65_alarm_new_temp_high}\r\n".encode())
+            ack = self.read_response()
+        if self.r65_alarm_new_temp_low:
+            self.ser.write(f"$REG 27 = {self.r65_alarm_new_temp_low}\r\n".encode())
+            ack = self.read_response()
+        self.new_alarm_temp_flag = False
 
     def extract_float(self, ack):
         pattern = r'=(\-?\d+(\.\d+)?)'
