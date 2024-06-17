@@ -19,9 +19,6 @@ class Controller:
         self.temp_value = ""
         self.start_manual = False  # flag indicating if the user wants to start the temperature regulation in manual mode
 
-        self.cycle_mode = False
-        self.start_cycle = False
-
         self.pid_mode = False
         self.start_pid = False
         self.new_p_value = ""
@@ -48,9 +45,12 @@ class Controller:
         self.r65_alarm_new_temp_high = None
         self.r65_alarm_new_temp_low = None
 
-
-
-
+        self.cycle_mode = False
+        self.start_cycle = False
+        self.high_temp = None
+        self.low_temp = None
+        self.use_percentage = False
+        self.percentage_threshold = 0
 
         self.logging = False
         self.data_queue = queue.Queue()
@@ -87,7 +87,6 @@ class Controller:
     def set_read_pid_values(self):
         with self.lock:
             self.read_pid_values = True
-        print("Read PID values flag set")
 
     def set_turn_off_flag(self):
         with self.lock:
@@ -101,37 +100,26 @@ class Controller:
     def set_start_autotune_flag(self):
         with self.lock:
             self.start_autotune = True
-        print("Autotune flag set")
 
     def set_pid_flag(self, new_temp_entry, entry_p_value, entry_i_value, entry_d_value):
-        print(f"received following values from gui : temp = {new_temp_entry}, p = {entry_p_value}, i = {entry_i_value}, d = {entry_d_value}")
         with self.lock:
             if new_temp_entry:
                 self.temp_value = new_temp_entry
-                print(f"New temp entry found : {self.temp_value}")
             else:
                 self.temp_value = None
-                print(f"No temp entry received : {self.temp_value}")
             if entry_p_value:
                 self.new_p_value = entry_p_value
-                print(f"New PID value found : {self.new_p_value}")
             else:
                 self.new_p_value = self.r5_gain_value
-                print(f"No new P value found, attributing old : {self.r5_gain_value} to new : {self.new_p_value}")
             if entry_i_value:
                 self.new_i_value = entry_i_value
-                print(f"New I value found : {self.new_i_value}")
             else:
                 self.new_i_value = self.r6_gain_value
-                print(f"No new I value found, attributing old : {self.r6_gain_value} to new : {self.new_i_value}")
             if entry_d_value:
                 self.new_d_value = entry_d_value
-                print(f"New D value found : {self.new_d_value}")
             else:
                 self.new_d_value = self.r7_gain_value
-                print(f"No new D value found, attributing old : {self.r7_gain_value} to new : {self.new_d_value}")
             self.start_pid = True
-            print("Start PID falg set")
 
     def connect_controller(self):
         self.ser = serial.Serial(self.port, self.baudrate, stopbits=1, bytesize=8, parity=serial.PARITY_NONE)
@@ -268,7 +256,8 @@ class Controller:
                     self.write_alarm_temp_value()
                 """Cycle logic"""
                 if self.start_cycle:
-                    pass
+                    if self.start_cycle:
+                        self.cycle_logic()
 
             t_end = time.time()
             elapsed_time = t_end - t_start
@@ -277,6 +266,33 @@ class Controller:
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
+    def set_cycle_mode_flag(self, high_temp, low_temp, use_percentage, percentage_threshold):
+        with self.lock:
+            self.high_temp = high_temp
+            self.low_temp = low_temp
+            self.use_percentage = use_percentage
+            self.percentage_threshold = percentage_threshold
+            self.start_cycle = True
+
+    def cycle_logic(self):
+        self.start_cycle = False
+        self.cycle_mode = True
+        self.is_running = True
+        if self.use_percentage:
+            high_temp_threshold = self.high_temp * (self.percentage_threshold / 100)
+            low_temp_threshold = self.low_temp * (self.percentage_threshold / 100)
+        else:
+            high_temp_threshold = self.high_temp
+            low_temp_threshold = self.low_temp
+
+        if self.r68_output >= high_temp_threshold:
+            self.set_temp_value(self.low_temp)
+        elif self.r68_output <= low_temp_threshold:
+            self.set_temp_value(self.high_temp)
+
+    def set_temp_value(self, temp_value):
+        self.ser.write(f"$REG 4={temp_value}\r\n".encode())
+        ack = self.read_response()
 
     def write_alarm_temp_value(self):
         if self.r68_alarm_new_temp_high:

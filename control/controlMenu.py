@@ -78,6 +78,33 @@ class ControlMenu(tk.CTkFrame):
         self.menu_autotune_frame_logging_checkbox.pack()
         self.menu_autotune_frame.pack()
 
+        # Cycle tab
+        self.menu_cycle_frame = tk.CTkFrame(self.tabview.tab("Cycle"))
+        self.high_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="High Temperature")
+        self.high_temp_entry.pack()
+
+        self.low_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Low Temperature")
+        self.low_temp_entry.pack()
+
+        self.percentage_checkbox = tk.CTkCheckBox(self.menu_cycle_frame, text="Use Percentage for Switching")
+        self.percentage_checkbox.pack()
+
+        self.percentage_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Percentage Threshold")
+        self.percentage_entry.pack()
+
+        self.start_cycle_button = tk.CTkButton(self.menu_cycle_frame, text="Start Cycle", command=self.start_cycle_mode)
+        self.start_cycle_button.pack()
+
+        self.menu_cycle_frame.pack()
+
+    def start_cycle_mode(self):
+        high_temp = float(self.high_temp_entry.get())
+        low_temp = float(self.low_temp_entry.get())
+        use_percentage = self.percentage_checkbox.get()
+        percentage_threshold = float(self.percentage_entry.get()) if use_percentage else 0
+
+        self.controller.set_cycle_mode_flag(high_temp, low_temp, use_percentage, percentage_threshold)
+
     def start_manual_mode(self):
         temp_value = self.menu_manuel_frame_entry_setpoint.get()
         self.controller.set_manual_mode_flag(temp_value)
