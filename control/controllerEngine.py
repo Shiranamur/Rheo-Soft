@@ -2,8 +2,7 @@ import threading
 import serial
 import time
 import re
-import queue
-import os
+from database.datalogger import DatabaseLogger
 
 
 class Controller:
@@ -11,6 +10,9 @@ class Controller:
         self.port = port
         self.baudrate = 115200
         self.ser = None
+
+        self.database_logger = DatabaseLogger()
+        self.database_logger.create_table()
 
         self.is_running = False  # Flag indicating that the controller is running in any mode
         self.turn_off = False  # used to signal the user wants to turn off the heating/cooling
@@ -47,22 +49,23 @@ class Controller:
 
         self.cycle_mode = False
         self.start_cycle = False
+
         self.high_temp = None
         self.low_temp = None
         self.use_percentage = False
         self.percentage_threshold = 0
+        self.time_btw_switchover = 0
+        self.wanted_nb_cycle = 0
+        self.switchover_number = 0
+        self.current_nb_cycle = 0
+        self.switchover_callback = 0
 
-        self.logging = False
-        self.data_queue = queue.Queue()
-        self.log_dir = 'cycle_log'
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.log_file = os.path.join(self.log_dir, 'sensor_data.log')
+        self.fan_running = False
 
-
-    def set_alarm_temp(self, r68_new_high_temp, r68_new_low_temp, r65_new_high_temp, r65_new_low_temp):
+    def set_alarm_temps(self, r68_new_high_temp, r68_new_low_temp, r65_new_high_temp, r65_new_low_temp):
         with self.lock:
             if r68_new_high_temp:
-                self.r65_alarm_new_temp_high = r68_new_high_temp
+                self.r68_alarm_new_temp_high = r68_new_high_temp
             else:
                 self.r68_alarm_new_temp_high = None
             if r68_new_low_temp:
@@ -79,10 +82,8 @@ class Controller:
                 self.r65_alarm_new_temp_low = None
 
             self.new_alarm_temp_flag = True
-
-    def set_logging(self):
-        with self.lock:
-            self.logging = not self.logging
+            print(
+                f"Alarm temps set: r68_high={self.r68_alarm_new_temp_high}, r68_low={self.r68_alarm_new_temp_low}, r65_high={self.r65_alarm_new_temp_high}, r65_low={self.r65_alarm_new_temp_low}")
 
     def set_read_pid_values(self):
         with self.lock:
@@ -126,7 +127,6 @@ class Controller:
 
     def start_engine_thread(self):
         threading.Thread(target=self.engine, daemon=True).start()
-        threading.Thread(target=self.log_data_thread, daemon=True).start()
 
     def engine(self):
         while True:
@@ -147,6 +147,9 @@ class Controller:
                         self.pid_mode = False
                         self.autotune_mode = False  # set all run flags to False
                         self.turn_off = False  # Reset flag to avoid continuous loop
+                        self.switchover_number = 0
+                        self.current_nb_cycle = 0
+                        self.switchover_callback = 0
 
                 """Manual mode logic"""
                 if self.start_manual:  # Check if user set manual run mode flag
@@ -257,38 +260,33 @@ class Controller:
                 """Cycle logic"""
                 if self.start_cycle:
                     if self.start_cycle:
-                        self.cycle_logic()
+                        self.cycle_basculement()
+
+                if self.cycle_mode:
+                    self.cycle_basculement()
+
+
+                self.database_logger.log(self.r68_output, self.r65_output)
 
             t_end = time.time()
             elapsed_time = t_end - t_start
             sleep_time = 0.5 - elapsed_time
-            print(elapsed_time)
+            # print(elapsed_time)
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-    def set_cycle_mode_flag(self, high_temp, low_temp, use_percentage, percentage_threshold):
+    def set_cycle_mode_flag(self, high_temp, low_temp, use_percentage, percentage_threshold, tbs, cycle_nb):
         with self.lock:
             self.high_temp = high_temp
             self.low_temp = low_temp
             self.use_percentage = use_percentage
             self.percentage_threshold = percentage_threshold
+            self.wanted_nb_cycle = cycle_nb
+            self.time_btw_switchover = tbs
             self.start_cycle = True
-
-    def cycle_logic(self):
-        self.start_cycle = False
-        self.cycle_mode = True
-        self.is_running = True
-        if self.use_percentage:
-            high_temp_threshold = self.high_temp * (self.percentage_threshold / 100)
-            low_temp_threshold = self.low_temp * (self.percentage_threshold / 100)
-        else:
-            high_temp_threshold = self.high_temp
-            low_temp_threshold = self.low_temp
-
-        if self.r68_output >= high_temp_threshold:
-            self.set_temp_value(self.low_temp)
-        elif self.r68_output <= low_temp_threshold:
-            self.set_temp_value(self.high_temp)
+            print(
+                f"Cycle mode flag set with high_temp: {high_temp}, low_temp: {low_temp}, use_percentage: {use_percentage}, "
+                f"percentage_threshold: {percentage_threshold}, time_btw_switchover: {tbs}, wanted_nb_cycle: {cycle_nb}")
 
     def set_temp_value(self, temp_value):
         self.ser.write(f"$REG 4={temp_value}\r\n".encode())
@@ -296,13 +294,13 @@ class Controller:
 
     def write_alarm_temp_value(self):
         if self.r68_alarm_new_temp_high:
-            self.ser.write(f"$REG 33 = {self.r68_alarm_new_temp_high}\r\n".encode())
+            self.ser.write(f"$REG 34 = {self.r68_alarm_new_temp_high}\r\n".encode())
             ack = self.read_response()
         if self.r68_alarm_new_temp_low:
             self.ser.write(f"$REG 33 = {self.r68_alarm_new_temp_low}\r\n".encode())
             ack = self.read_response()
         if self.r65_alarm_new_temp_high:
-            self.ser.write(f"$REG 27 = {self.r65_alarm_new_temp_high}\r\n".encode())
+            self.ser.write(f"$REG 28 = {self.r65_alarm_new_temp_high}\r\n".encode())
             ack = self.read_response()
         if self.r65_alarm_new_temp_low:
             self.ser.write(f"$REG 27 = {self.r65_alarm_new_temp_low}\r\n".encode())
@@ -330,16 +328,17 @@ class Controller:
         self.r65_output = self.extract_float(ack)
         # print(self.r65_output)
 
-        if self.logging:
-            self.data_queue.put((time.time(), self.r68_output, self.r65_output))
-
     def stop_fan(self):
         self.ser.write("$REG 39=0\r\n".encode())
         ack = self.read_response()
+        self.fan_running = False
 
     def start_fan(self):
         self.ser.write("$REG 39=1\r\n".encode())
-        ack=self.read_response()
+        ack = self.read_response()
+        self.ser.write("$REG 63=2\r\n".encode())
+        ack = self.read_response()
+        self.fan_running = True
 
     def read_response(self):
         response = b""
@@ -350,46 +349,22 @@ class Controller:
                 break
         return response.decode('ascii').strip()
 
-    def update_status(self, message):
-        print(f"Updating status: {message}")
-        if self.status_callback:
-            self.status_callback(message)
-
     def write_pid_values(self):
-        print("Writing PID Values")
         self.ser.write(f"$REG 5={self.new_p_value}\r\n".encode())
         ack = self.read_response()
-        print(f"$REG 5={self.new_p_value}")
         self.ser.write(f"$REG 6={self.new_i_value}\r\n".encode())
         ack = self.read_response()
-        print(f"$REG 6={self.new_i_value}")
         self.ser.write(f"$REG 7={self.new_d_value}\r\n".encode())
         ack = self.read_response()
-        print(f"$REG 7={self.new_d_value}")
         self.read_pid_values = True
-        print("read_pid_values flag set")
 
         if self.temp_value:
-            print("Found new temperature")
             self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
             ack = self.read_response()
-            print(f"Received ack for temp value: {ack}")
-            if f"REG 4={self.temp_value}" in ack:
-                print(f"New temp set to {self.temp_value}")
-        else:
-            print("No new temp found, ignoring temp")
-
 
     def write_temp_value(self):
         self.ser.write(f"$REG 4={self.temp_value}\r\n".encode())
         ack = self.read_response()
-        return "?" not in ack and f"REG 4={self.temp_value}" in ack
-
-    def log_data_thread(self):
-        while True:
-            data = self.data_queue.get()  # This will block until data is available
-            with open(self.log_file, 'a') as f:
-                f.write(f"{data[0]},{data[1]},{data[2]}\n")
 
     def read_autotune_value(self):
         self.ser.write("$REG 1\r\n".encode())
@@ -412,9 +387,95 @@ class Controller:
     def read_alarm_reg(self):
         self.ser.write("$REG 38\r\n".encode())
         ack = self.read_response().strip()
-        print(ack)
         if ack.startswith("REG 38="):
             reg_value = int(ack.split("=")[1])
             for i in range(8):
                 if reg_value & (1 << i) != 0:
-                    self.start_fan()
+                    if not self.fan_running:
+                        self.start_fan()
+                else:
+                    self.stop_fan()
+
+    def cycle_basculement(self):
+        # Si est en mode cycle est n'a pas atteint la limite du nombre de basculement
+        if self.cycle_mode and self.current_nb_cycle < self.wanted_nb_cycle:
+            print(f"Cycle basculement started. Current cycle: {self.current_nb_cycle}/{self.wanted_nb_cycle}, "
+                  f"Switchover callback: {self.switchover_callback}")
+
+            if self.switchover_callback == 1:
+                if self.use_percentage:
+                    pct_of_temp = self.high_temp * (self.percentage_threshold / 100)
+                    if self.r68_output >= pct_of_temp:
+                        self.switchover_callback = 2
+                        self.switchover_number += 1
+                        print(
+                            f"Switching to callback 2. Current r68_output: {self.r68_output}, Threshold: {pct_of_temp}")
+                else:
+                    if self.r68_output >= self.high_temp:
+                        self.switchover_callback = 2
+                        self.switchover_number += 1
+                        print(
+                            f"Switching to callback 2. Current r68_output: {self.r68_output}, High Temp: {self.high_temp}")
+
+            elif self.switchover_callback == 2:
+                self.switchover_number += 1
+                r = self.switchover_number / 2
+                if r % self.time_btw_switchover == 0:
+                    self.switchover_callback = 3
+                    print(f"Switching to callback 3 after {self.time_btw_switchover} seconds")
+
+            elif self.switchover_callback == 3:
+                self.ser.write(f"$REG 4={self.low_temp}\r\n".encode())
+                ack = self.read_response()
+                self.switchover_callback = 4
+                print(f"Set temperature to low_temp: {self.low_temp}. Ack: {ack}")
+
+            elif self.switchover_callback == 4:
+                if self.use_percentage:
+                    pct_of_temp = self.low_temp * (1 + abs(self.percentage_threshold - 100) / 100)
+                    if self.r68_output <= pct_of_temp:
+                        self.switchover_callback = 5
+                        self.switchover_number += 1
+                        print(
+                            f"Switching to callback 5. Current r68_output: {self.r68_output}, Threshold: {pct_of_temp}")
+                else:
+                    if self.r68_output <= self.low_temp:
+                        self.switchover_callback = 5
+                        self.switchover_number += 1
+                        print(
+                            f"Switching to callback 5. Current r68_output: {self.r68_output}, Low Temp: {self.low_temp}")
+
+            elif self.switchover_callback == 5:
+                self.switchover_number += 1
+                r = self.switchover_number / 2
+                if r % self.time_btw_switchover == 0:
+                    self.switchover_callback = 6
+                    print(f"Switching to callback 6 after {self.time_btw_switchover} seconds")
+
+            elif self.switchover_callback == 6:
+                self.ser.write(f"$REG 4={self.high_temp}\r\n".encode())
+                ack = self.read_response()
+                self.switchover_number = 1
+                self.current_nb_cycle += 1
+                print(
+                    f"Set temperature to high_temp: {self.high_temp}. Ack: {ack}. Current cycle: {self.current_nb_cycle}")
+
+        elif not self.cycle_mode:  # si n'est pas en mode cycle
+            self.ser.write(f"$REG 2=3\r\n".encode())
+            ack = self.read_response()
+            print(ack)
+            self.is_running = True
+            self.ser.write(f"$REG 4={self.high_temp}\r\n".encode())
+            ack = self.read_response()
+            self.cycle_mode = True
+            self.start_cycle = False
+            self.switchover_callback = 1
+            print(f"Cycle mode started. High temp set to {self.high_temp}. Ack: {ack}, switchover value = {self.switchover_callback}")
+
+        # si la limite de basculement a été atteinte
+        elif self.current_nb_cycle >= self.wanted_nb_cycle:
+            self.turn_off = True
+            self.current_nb_cycle = 0
+            self.switchover_callback = 0
+            self.switchover_number = 0
+            print("Cycle mode completed. Turning off.")

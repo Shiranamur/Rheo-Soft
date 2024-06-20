@@ -1,4 +1,5 @@
 import customtkinter as tk
+from tkinter import messagebox
 
 
 class ControlMenu(tk.CTkFrame):
@@ -26,9 +27,6 @@ class ControlMenu(tk.CTkFrame):
         self.menu_manuel_frame_button.pack()
         self.menu_manuel_frame_entry_setpoint = tk.CTkEntry(self.menu_manuel_frame, width=width - 20)
         self.menu_manuel_frame_entry_setpoint.pack()
-        self.menu_manuel_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_manuel_frame, text="Log Data",
-                                                                 command=self.toggle_logging)
-        self.menu_manuel_frame_logging_checkbox.pack()
         self.menu_manuel_frame.pack()
 
         # PID tab
@@ -60,9 +58,6 @@ class ControlMenu(tk.CTkFrame):
         self.menu_pid_frame_button = tk.CTkButton(master=self.menu_pid_frame, text="Start with current PID value",
                                                   command=self.start_pid_mode)
         self.menu_pid_frame_button.pack()
-        self.menu_pid_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_pid_frame, text="Log Data",
-                                                              command=self.toggle_logging)
-        self.menu_pid_frame_logging_checkbox.pack()
         self.menu_pid_frame.pack()
 
         # Auto Tune tab
@@ -73,37 +68,54 @@ class ControlMenu(tk.CTkFrame):
         self.menu_autotune_status_label = tk.CTkLabel(master=self.menu_autotune_frame, width=width - 20, height=100,
                                                       text="")
         self.menu_autotune_status_label.pack()
-        self.menu_autotune_frame_logging_checkbox = tk.CTkCheckBox(master=self.menu_autotune_frame, text="Log Data",
-                                                                   command=self.toggle_logging)
-        self.menu_autotune_frame_logging_checkbox.pack()
         self.menu_autotune_frame.pack()
 
         # Cycle tab
         self.menu_cycle_frame = tk.CTkFrame(self.tabview.tab("Cycle"))
-        self.high_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="High Temperature")
+        self.high_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set high temperature point")
         self.high_temp_entry.pack()
 
-        self.low_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Low Temperature")
+        self.low_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set low temperature point")
         self.low_temp_entry.pack()
 
-        self.percentage_checkbox = tk.CTkCheckBox(self.menu_cycle_frame, text="Use Percentage for Switching")
+        self.percentage_checkbox = tk.CTkCheckBox(self.menu_cycle_frame, text="Use round up %")
         self.percentage_checkbox.pack()
 
-        self.percentage_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Percentage Threshold")
+        self.percentage_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Percentage Threshold of temp for switching point")
         self.percentage_entry.pack()
+
+        self.time_btw_switchover_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set time between switchover once temp is reached")
+        self.time_btw_switchover_entry.pack()
+
+        self.wanted_nb_cycle_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set wanted number of cycles")
+        self.wanted_nb_cycle_entry.pack()
 
         self.start_cycle_button = tk.CTkButton(self.menu_cycle_frame, text="Start Cycle", command=self.start_cycle_mode)
         self.start_cycle_button.pack()
 
         self.menu_cycle_frame.pack()
 
+    # Adding debug prints to start_cycle_mode in ControlMenu
     def start_cycle_mode(self):
-        high_temp = float(self.high_temp_entry.get())
-        low_temp = float(self.low_temp_entry.get())
-        use_percentage = self.percentage_checkbox.get()
-        percentage_threshold = float(self.percentage_entry.get()) if use_percentage else 0
+        try:
+            high_temp = float(self.high_temp_entry.get())
+            low_temp = float(self.low_temp_entry.get())
+            use_percentage = self.percentage_checkbox.get()
+            percentage_threshold = int(self.percentage_entry.get()) if use_percentage else 0
+            time_btw_switchover = float(self.time_btw_switchover_entry.get())
+            cycle_nb = int(self.wanted_nb_cycle_entry.get())
+        except ValueError:
+            messagebox.showerror("Input Error", "All fields must be filled out correctly with valid values.")
+            return
 
-        self.controller.set_cycle_mode_flag(high_temp, low_temp, use_percentage, percentage_threshold)
+        if not high_temp or not low_temp or not time_btw_switchover or not cycle_nb:
+            messagebox.showerror("Input Error", "All fields must be filled out correctly.")
+        else:
+            print(
+                f"Starting cycle mode with high_temp: {high_temp}, low_temp: {low_temp}, use_percentage: {use_percentage}, "
+                f"percentage_threshold: {percentage_threshold}, time_btw_switchover: {time_btw_switchover}, cycle_nb: {cycle_nb}")
+            self.controller.set_cycle_mode_flag(high_temp, low_temp, use_percentage, percentage_threshold,
+                                                time_btw_switchover, cycle_nb)
 
     def start_manual_mode(self):
         temp_value = self.menu_manuel_frame_entry_setpoint.get()
@@ -146,8 +158,6 @@ class ControlMenu(tk.CTkFrame):
 
     # Update labels after a delay to ensure values are read
 
-    def toggle_logging(self):
-        self.controller.set_logging()
 
     def check_tab_change(self):
         current_tab = self.tabview.get()
@@ -188,11 +198,15 @@ class AlarmMenu(tk.CTkFrame):
         self.sensor_a_lowtemp_entry = tk.CTkEntry(self.temp_frame, placeholder_text="Sensor A Low temperature alarm temp")
         self.sensor_a_lowtemp_entry.pack(padx=5, pady=5)
 
+        self.alarm_button = tk.CTkButton(master=self.temp_frame, text="Send new alarm values", command=self.set_and_send_alarm_temps)
+        self.alarm_button.pack(padx=5, pady=5)
+
     def set_and_send_alarm_temps(self):
         sdht = self.sensor_d_hightemp_entry.get()
         sdlt = self.sensor_d_lowtemp_entry.get()
         saht = self.sensor_a_hightemp_entry.get()
         salt = self.sensor_a_lowtemp_entry.get()
+        print(f"values taken from alarm entry : {sdht}, {sdlt}, {saht}, {salt}")
         self.controller.set_alarm_temps(sdht, sdlt, saht, salt)
 
 
@@ -282,7 +296,3 @@ class StatusMenu(tk.CTkFrame):
             else:
                 self.pump_volume_label.configure(text="Pump Volume: - (Serial connection closed)")
         self.after(1000, self.update_pump_volume)
-
-
-
-
