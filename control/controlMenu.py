@@ -11,7 +11,6 @@ class ControlMenu(tk.CTkFrame):
         self.tabview = tk.CTkTabview(self, height=height - 10, width=width - 10)
         self.tabview.pack(padx=5, pady=5)
 
-        self.tabview.add("Manuel")
         self.tabview.add("Cycle")
         self.tabview.add("PID")
         self.tabview.add("Auto Tune")
@@ -19,15 +18,6 @@ class ControlMenu(tk.CTkFrame):
         # Start checking for tab changes
         self.previous_tab = self.tabview.get()
         self.check_tab_change()
-
-        # Manuel tab
-        self.menu_manuel_frame = tk.CTkFrame(self.tabview.tab("Manuel"))
-        self.menu_manuel_frame_button = tk.CTkButton(master=self.menu_manuel_frame, text="Turn On",
-                                                     command=self.start_manual_mode)
-        self.menu_manuel_frame_button.pack()
-        self.menu_manuel_frame_entry_setpoint = tk.CTkEntry(self.menu_manuel_frame, width=width - 20)
-        self.menu_manuel_frame_entry_setpoint.pack()
-        self.menu_manuel_frame.pack()
 
         # PID tab
         self.menu_pid_frame = tk.CTkFrame(self.tabview.tab("PID"))
@@ -72,26 +62,32 @@ class ControlMenu(tk.CTkFrame):
 
         # Cycle tab
         self.menu_cycle_frame = tk.CTkFrame(self.tabview.tab("Cycle"))
+
         self.high_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set high temperature point")
-        self.high_temp_entry.pack()
+        self.high_temp_entry.pack(pady=2)
 
         self.low_temp_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set low temperature point")
-        self.low_temp_entry.pack()
+        self.low_temp_entry.pack(pady=2)
 
-        self.percentage_checkbox = tk.CTkCheckBox(self.menu_cycle_frame, text="Use round up %")
-        self.percentage_checkbox.pack()
-
-        self.percentage_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Percentage Threshold of temp for switching point")
-        self.percentage_entry.pack()
-
-        self.time_btw_switchover_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set time between switchover once temp is reached")
-        self.time_btw_switchover_entry.pack()
+        self.time_btw_switchover_entry = tk.CTkEntry(self.menu_cycle_frame,
+                                                     placeholder_text="Set time between switchover once temp is reached")
+        self.time_btw_switchover_entry.pack(pady=2)
 
         self.wanted_nb_cycle_entry = tk.CTkEntry(self.menu_cycle_frame, placeholder_text="Set wanted number of cycles")
-        self.wanted_nb_cycle_entry.pack()
+        self.wanted_nb_cycle_entry.pack(pady=2)
+
+        self.percentage_checkbox = tk.CTkCheckBox(self.menu_cycle_frame, text="Use round up %")
+        self.percentage_checkbox.pack(pady=2)
+
+        self.percentage_entry = tk.CTkEntry(self.menu_cycle_frame,
+                                            placeholder_text="Percentage Threshold of temp for switching point")
+        self.percentage_entry.pack(pady=2)
+
+        self.cycle_number_label = tk.CTkLabel(self.menu_cycle_frame, text="")
+        self.cycle_number_label.pack(pady=2)
 
         self.start_cycle_button = tk.CTkButton(self.menu_cycle_frame, text="Start Cycle", command=self.start_cycle_mode)
-        self.start_cycle_button.pack()
+        self.start_cycle_button.pack(pady=2)
 
         self.menu_cycle_frame.pack()
 
@@ -117,10 +113,6 @@ class ControlMenu(tk.CTkFrame):
             self.controller.set_cycle_mode_flag(high_temp, low_temp, use_percentage, percentage_threshold,
                                                 time_btw_switchover, cycle_nb)
 
-    def start_manual_mode(self):
-        temp_value = self.menu_manuel_frame_entry_setpoint.get()
-        self.controller.set_manual_mode_flag(temp_value)
-
     def start_pid_mode(self):
         new_temp = self.menu_pid_frame_new_temp.get()
         new_p_gain = self.menu_pid_frame_new_p_gain.get()
@@ -141,6 +133,11 @@ class ControlMenu(tk.CTkFrame):
 
     def update_autotune_status(self, message):
         self.menu_autotune_status_label.configure(text=message)
+
+    def refresh_cycle_status(self):
+        if self.tabview.get() == "Cycle":
+            self.cycle_number_label.configure(text=self.controller.status_callback_cycle)
+        self.after(5000, self.refresh_cycle_status)
 
     def refresh_autotune_status(self):
         if self.tabview.get() == "Auto Tune":
@@ -206,7 +203,6 @@ class AlarmMenu(tk.CTkFrame):
         sdlt = self.sensor_d_lowtemp_entry.get()
         saht = self.sensor_a_hightemp_entry.get()
         salt = self.sensor_a_lowtemp_entry.get()
-        print(f"values taken from alarm entry : {sdht}, {sdlt}, {saht}, {salt}")
         self.controller.set_alarm_temps(sdht, sdlt, saht, salt)
 
 

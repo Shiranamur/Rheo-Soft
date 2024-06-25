@@ -17,7 +17,7 @@ class Pump:
                 if self.ser and self.ser.in_waiting:
                     pump_output = self.ser.readline().decode('ascii').strip()
                     self.data_queue.put(pump_output)
-                time.sleep(1)  # Adjust as needed
+                time.sleep(1)
         except (serial.SerialException, AttributeError):
             pass
 

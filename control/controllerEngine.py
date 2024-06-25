@@ -2,17 +2,16 @@ import threading
 import serial
 import time
 import re
-from database.datalogger import DatabaseLogger
+from data.redistest import ValkeyLog
 
 
 class Controller:
-    def __init__(self, port, status_callback=None):
+    def __init__(self, port, status_callback=None, status_callback_cycle=None):
         self.port = port
         self.baudrate = 115200
         self.ser = None
 
-        self.database_logger = DatabaseLogger()
-        self.database_logger.create_table()
+        self.valkey_log = ValkeyLog()
 
         self.is_running = False  # Flag indicating that the controller is running in any mode
         self.turn_off = False  # used to signal the user wants to turn off the heating/cooling
@@ -35,6 +34,7 @@ class Controller:
         self.autotune_started = False
         self.start_autotune = False
         self.status_callback = status_callback
+        self.autotune_mode = False
 
         self.lock = threading.Lock()
 
@@ -59,8 +59,10 @@ class Controller:
         self.switchover_number = 0
         self.current_nb_cycle = 0
         self.switchover_callback = 0
+        self.status_callback_cycle = status_callback_cycle
 
         self.fan_running = False
+        self.recent_alarm_states = [0] * 20
 
     def set_alarm_temps(self, r68_new_high_temp, r68_new_low_temp, r65_new_high_temp, r65_new_low_temp):
         with self.lock:
@@ -151,35 +153,35 @@ class Controller:
                         self.current_nb_cycle = 0
                         self.switchover_callback = 0
 
-                """Manual mode logic"""
-                if self.start_manual:  # Check if user set manual run mode flag
-                    if self.is_running:  # Check if controller is already running
-                        self.ser.write("$REG 2\r\n".encode())  # ask controller the value of run register
-                        ack = self.read_response()  # store controller acknowledgement
-
-                        if "REG 2=1" in ack:  # check for manual mode value in controller's response
-                            if self.write_temp_value():
-                                self.start_manual = False  # Reset flag to avoid continuous loop
-                        else:  # If controller is in another run mode
-                            self.ser.write("$REG 2=1\r\n".encode())  # Sends run in manual command to controller
-                            ack = self.read_response()  # store controller acknowledgement
-
-                            if "REG 2=1" in ack:  # check ack for right reg value and data
-                                self.cycle_mode = False
-                                self.pid_mode = False
-                                self.autotune_mode = False  # Set other flags to False
-                                self.manual_mode = True  # Set manual_mode to True
-                                if self.write_temp_value():
-                                    self.start_manual = False  # Reset flag to avoid continuous loop
-                    else:  # If controller is not running
-                        self.ser.write("$REG 2=1\r\n".encode())  # Sends run in manual command to controller
-                        ack = self.read_response()  # store controller acknowledgement
-
-                        if "REG 2=1" in ack:  # check ack for right reg value and data
-                            self.is_running = True
-                            self.manual_mode = True  # Set running and manual_mode flags to True
-                            if self.write_temp_value():
-                                self.start_manual = False  # Reset flag to avoid continuous loop
+                # """Manual mode logic. ///commented out, issue with adaptive junior v1 on manual mode."""
+                # if self.start_manual:  # Check if user set manual run mode flag
+                #     if self.is_running:  # Check if controller is already running
+                #         self.ser.write("$REG 2\r\n".encode())  # ask controller the value of run register
+                #         ack = self.read_response()  # store controller acknowledgement
+                #
+                #         if "REG 2=1" in ack:  # check for manual mode value in controller's response
+                #             if self.write_temp_value():
+                #                 self.start_manual = False  # Reset flag to avoid continuous loop
+                #         else:  # If controller is in another run mode
+                #             self.ser.write("$REG 2=1\r\n".encode())  # Sends run in manual command to controller
+                #             ack = self.read_response()  # store controller acknowledgement
+                #
+                #             if "REG 2=1" in ack:  # check ack for right reg value and data
+                #                 self.cycle_mode = False
+                #                 self.pid_mode = False
+                #                 self.autotune_mode = False  # Set other flags to False
+                #                 self.manual_mode = True  # Set manual_mode to True
+                #                 if self.write_temp_value():
+                #                     self.start_manual = False  # Reset flag to avoid continuous loop
+                #     else:  # If controller is not running
+                #         self.ser.write("$REG 2=1\r\n".encode())  # Sends run in manual command to controller
+                #         ack = self.read_response()  # store controller acknowledgement
+                #
+                #         if "REG 2=1" in ack:  # check ack for right reg value and data
+                #             self.is_running = True
+                #             self.manual_mode = True  # Set running and manual_mode flags to True
+                #             if self.write_temp_value():
+                #                 self.start_manual = False  # Reset flag to avoid continuous loop
 
                 """autotune logic"""
                 if self.start_autotune:
@@ -265,8 +267,7 @@ class Controller:
                 if self.cycle_mode:
                     self.cycle_basculement()
 
-
-                self.database_logger.log(self.r68_output, self.r65_output)
+                self.valkey_log.log(self.r68_output, self.r65_output)
 
             t_end = time.time()
             elapsed_time = t_end - t_start
@@ -389,18 +390,23 @@ class Controller:
         ack = self.read_response().strip()
         if ack.startswith("REG 38="):
             reg_value = int(ack.split("=")[1])
+            detected_value = 0
             for i in range(8):
                 if reg_value & (1 << i) != 0:
+                    detected_value = 1
                     if not self.fan_running:
                         self.start_fan()
-                else:
-                    self.stop_fan()
+                    break
+            self.recent_alarm_states.pop(0)  # Remove the oldest entry
+            self.recent_alarm_states.append(detected_value)  # Add the latest result
+
+            # Check if the list contains only 0s
+            if all(state == 0 for state in self.recent_alarm_states):
+                self.stop_fan()
 
     def cycle_basculement(self):
         # Si est en mode cycle est n'a pas atteint la limite du nombre de basculement
         if self.cycle_mode and self.current_nb_cycle < self.wanted_nb_cycle:
-            print(f"Cycle basculement started. Current cycle: {self.current_nb_cycle}/{self.wanted_nb_cycle}, "
-                  f"Switchover callback: {self.switchover_callback}")
 
             if self.switchover_callback == 1:
                 if self.use_percentage:
@@ -408,27 +414,22 @@ class Controller:
                     if self.r68_output >= pct_of_temp:
                         self.switchover_callback = 2
                         self.switchover_number += 1
-                        print(
-                            f"Switching to callback 2. Current r68_output: {self.r68_output}, Threshold: {pct_of_temp}")
+
                 else:
                     if self.r68_output >= self.high_temp:
                         self.switchover_callback = 2
                         self.switchover_number += 1
-                        print(
-                            f"Switching to callback 2. Current r68_output: {self.r68_output}, High Temp: {self.high_temp}")
 
             elif self.switchover_callback == 2:
                 self.switchover_number += 1
                 r = self.switchover_number / 2
                 if r % self.time_btw_switchover == 0:
                     self.switchover_callback = 3
-                    print(f"Switching to callback 3 after {self.time_btw_switchover} seconds")
 
             elif self.switchover_callback == 3:
                 self.ser.write(f"$REG 4={self.low_temp}\r\n".encode())
                 ack = self.read_response()
                 self.switchover_callback = 4
-                print(f"Set temperature to low_temp: {self.low_temp}. Ack: {ack}")
 
             elif self.switchover_callback == 4:
                 if self.use_percentage:
@@ -436,29 +437,23 @@ class Controller:
                     if self.r68_output <= pct_of_temp:
                         self.switchover_callback = 5
                         self.switchover_number += 1
-                        print(
-                            f"Switching to callback 5. Current r68_output: {self.r68_output}, Threshold: {pct_of_temp}")
                 else:
                     if self.r68_output <= self.low_temp:
                         self.switchover_callback = 5
                         self.switchover_number += 1
-                        print(
-                            f"Switching to callback 5. Current r68_output: {self.r68_output}, Low Temp: {self.low_temp}")
 
             elif self.switchover_callback == 5:
                 self.switchover_number += 1
                 r = self.switchover_number / 2
                 if r % self.time_btw_switchover == 0:
                     self.switchover_callback = 6
-                    print(f"Switching to callback 6 after {self.time_btw_switchover} seconds")
 
             elif self.switchover_callback == 6:
                 self.ser.write(f"$REG 4={self.high_temp}\r\n".encode())
                 ack = self.read_response()
-                self.switchover_number = 1
+                self.switchover_callback = 1
                 self.current_nb_cycle += 1
-                print(
-                    f"Set temperature to high_temp: {self.high_temp}. Ack: {ack}. Current cycle: {self.current_nb_cycle}")
+                self.status_callback_cycle = f"Cycle number : {self.current_nb_cycle} "
 
         elif not self.cycle_mode:  # si n'est pas en mode cycle
             self.ser.write(f"$REG 2=3\r\n".encode())
@@ -470,7 +465,7 @@ class Controller:
             self.cycle_mode = True
             self.start_cycle = False
             self.switchover_callback = 1
-            print(f"Cycle mode started. High temp set to {self.high_temp}. Ack: {ack}, switchover value = {self.switchover_callback}")
+            self.status_callback_cycle = f"Cycle number : {self.current_nb_cycle} "
 
         # si la limite de basculement a été atteinte
         elif self.current_nb_cycle >= self.wanted_nb_cycle:
@@ -478,4 +473,4 @@ class Controller:
             self.current_nb_cycle = 0
             self.switchover_callback = 0
             self.switchover_number = 0
-            print("Cycle mode completed. Turning off.")
+            self.status_callback_cycle = "Cycle mode completed."

@@ -1,6 +1,6 @@
 # controlGraph.py
 import customtkinter as tk
-from control.coms import Controller
+from old.coms import Controller
 
 
 class ControlGraphFrame(tk.CTkFrame):

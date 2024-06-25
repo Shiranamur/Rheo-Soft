@@ -1,6 +1,6 @@
 # pumpFrame.py
 import customtkinter as tk
-from control.coms import Pump
+from old.coms import Pump
 from queue import Empty
 
 class PumpFrame(tk.CTkFrame):

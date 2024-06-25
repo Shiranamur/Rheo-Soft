@@ -1,9 +1,12 @@
-import valkey as redis
-import datetime
-import random
-import time
+# redistest.py
 
-class DataLogger:
+import redis
+import datetime
+import threading
+import time
+import random
+
+class ValkeyLog:
     def __init__(self, host='localhost', port=6379, db=0):
         self.host = host
         self.port = port
@@ -20,16 +23,15 @@ class DataLogger:
         key = self.r.incr("data_counter")
         self.r.hset(f"data_{key}", mapping=data)
 
-# Function to generate random data
-def generate_random_data():
-    return random.randint(0, 100), random.randint(0, 100)
+def generate_and_log_random_values():
+    valkey_log = ValkeyLog()
+    while True:
+        sensor_a = random.uniform(0, 100)  # Generate a random float between 0 and 100
+        sensor_d = random.uniform(0, 100)  # Generate a random float between 0 and 100
+        valkey_log.log(sensor_d, sensor_a)
+        time.sleep(0.5)
 
-# Create an instance of DataLogger
-logger = DataLogger()
-
-# Main loop to generate and log data
-while True:
-    sensor_a, sensor_d = generate_random_data()
-    logger.log(sensor_d, sensor_a)
-    print(f"Logged data: sensor_a={sensor_a}, sensor_d={sensor_d}")
-    time.sleep(0.5)
+def start_logging_thread():
+    logging_thread = threading.Thread(target=generate_and_log_random_values)
+    logging_thread.daemon = True
+    logging_thread.start()
