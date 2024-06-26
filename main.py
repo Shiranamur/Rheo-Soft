@@ -1,5 +1,3 @@
-# main.py
-
 import customtkinter as tk
 from settings import AppSettings
 from tabview import Tabview
@@ -8,7 +6,7 @@ import redis
 from datetime import datetime
 import logging
 import os
-from data.redistest import start_logging_thread  # Import the new function
+from control.runtime_graph import GraphPage
 
 # Folder to store logs
 LOG_FOLDER = 'logs'
@@ -48,7 +46,7 @@ class Application(tk.CTk):
             logging.error(f"Error identifying devices: {e}")
 
         self.tabview = Tabview(master=self, pump_port=self.pump_port, controller_port=self.controller_port)
-        self.tabview.pack(fill=tk.BOTH, expand=True)
+        self.tabview.pack(fill=tk.X, expand=True)
         logging.info("Application Initialized")
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -60,16 +58,21 @@ class Application(tk.CTk):
 
     def save_data_to_csv(self):
         try:
-            df = self.tabview.graph.fetch_data_from_redis(last_minutes=1440 * 7)  # Fetch data for the last 7 days
+            logging.info("Fetching data from Redis")
+            df = GraphPage.fetch_data_from_redis(last_minutes=1440 * 7)  # Fetch data for the last 7 days
+            logging.info("Data fetched successfully")
             if not df.empty:
                 filename = os.path.join(SESSION_DATA_FOLDER,
                                         f"sensor_data_backup_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv")
                 df.to_csv(filename, index=False)
                 logging.info(f"Data saved to {filename}")
+            else:
+                logging.info("No data to save")
         except Exception as e:
             logging.error(f"Error saving data to CSV: {e}")
 
-    def purge_redis_data(self):
+    @staticmethod
+    def purge_redis_data():
         try:
             r = redis.Redis(host='localhost', port=6379, db=0)
             r.flushall()
@@ -80,7 +83,7 @@ class Application(tk.CTk):
 
 if __name__ == "__main__":
     logging.info("Starting Application")
-    start_logging_thread()  # Start the logging thread
     app = Application()
     app.mainloop()
     logging.info("Application Started")
+    print("Application Started")  # Debugging

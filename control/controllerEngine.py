@@ -2,7 +2,7 @@ import threading
 import serial
 import time
 import re
-from data.redistest import ValkeyLog
+from data.valkey import ValkeyLog
 
 
 class Controller:
